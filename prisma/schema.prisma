@@ -27,6 +27,7 @@ model User {
 
   studentProfile StudentProfile?
   facultyProfile FacultyProfile?
+  hodProfile     HodProfile?
 }
 
 model UserMode {
@@ -52,6 +53,14 @@ model FacultyProfile {
   user        User     @relation(fields: [vmNo], references: [vmNo], onDelete: Cascade)
   department  String
   designation String   @default("Assistant Professor")
+  createdAt   DateTime @default(now())
+}
+
+model HodProfile {
+  vmNo        String   @id
+  user        User     @relation(fields: [vmNo], references: [vmNo], onDelete: Cascade)
+  department  String
+  designation String   @default("Head of Department")
   createdAt   DateTime @default(now())
 }
 

@@ -43,14 +43,19 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { email, name, password, role } = body;
+    const { email, name, password, role, vmNo } = body;
 
     if (!email || !name || !password || !role) {
       return NextResponse.json({ success: false, error: "Missing required fields (email, name, password, role)" }, { status: 400 });
     }
 
+    if (role !== "ADMIN" && !vmNo) {
+      return NextResponse.json({ success: false, error: "Missing required field (VM No/VMS No)" }, { status: 400 });
+    }
+
     const cleanEmail = email.toLowerCase().trim();
     const cleanName = name.trim();
+    const cleanVmNo = vmNo ? vmNo.trim() : null;
     // Encrypt the password symmetrically so it's protected in DB but reversible
     const storedPassword = encrypt(password);
     const validRole = ["STUDENT", "FACULTY", "HOD", "ADMIN"].includes(role) ? role : "STUDENT";
@@ -64,11 +69,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: `User with email '${cleanEmail}' already exists.` }, { status: 400 });
     }
 
+    // Check if vmNo already exists
+    if (cleanVmNo) {
+      const existingVm: any[] = await prisma.$queryRaw`
+        SELECT id FROM "User" WHERE "vmNo" = ${cleanVmNo} LIMIT 1
+      `;
+      if (existingVm && existingVm.length > 0) {
+        return NextResponse.json({ success: false, error: `User with VM No/VMS No '${cleanVmNo}' already exists.` }, { status: 400 });
+      }
+    }
+
     const newId = crypto.randomUUID();
 
     // 2. Insert user into PostgreSQL
     await prisma.$executeRaw`
-      INSERT INTO "User" (id, email, name, password, role, status, "createdAt", "updatedAt")
+      INSERT INTO "User" (id, email, name, password, role, status, "vmNo", "createdAt", "updatedAt")
       VALUES (
         ${newId},
         ${cleanEmail},
@@ -76,6 +91,7 @@ export async function POST(req: Request) {
         ${storedPassword},
         ${validRole}::"Role",
         'ACTIVE',
+        ${cleanVmNo},
         NOW(),
         NOW()
       )

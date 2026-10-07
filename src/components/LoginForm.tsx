@@ -33,7 +33,9 @@ export default function LoginForm() {
 
         if (userRole === "ADMIN") {
           window.location.href = "/admin";
-        } else if (userRole === "TEACHER" || userRole === "STAFF" || userRole === "FACULTY" || userRole === "HOD") {
+        } else if (userRole === "HOD") {
+          window.location.href = "/hod";
+        } else if (userRole === "TEACHER" || userRole === "STAFF" || userRole === "FACULTY") {
           window.location.href = "/teacher";
         } else {
           window.location.href = "/student";

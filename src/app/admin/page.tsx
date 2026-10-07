@@ -90,6 +90,7 @@ export default function AdminPage() {
   const [newUserName, setNewUserName] = useState("");
   const [newUserPass, setNewUserPass] = useState("");
   const [newUserRole, setNewUserRole] = useState("STUDENT");
+  const [newUserVmNo, setNewUserVmNo] = useState("");
 
   // Dept Form
   const [newDeptCode, setNewDeptCode] = useState("");
@@ -160,10 +161,10 @@ export default function AdminPage() {
     const res = await fetch("/api/admin/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: newUserEmail, name: newUserName, password: newUserPass, role: newUserRole }),
+      body: JSON.stringify({ email: newUserEmail, name: newUserName, password: newUserPass, role: newUserRole, vmNo: newUserVmNo }),
     }).then((r) => r.json());
 
-    if (res.success) { setShowUserModal(false); setNewUserEmail(""); setNewUserName(""); setNewUserPass(""); fetchData(); }
+    if (res.success) { setShowUserModal(false); setNewUserEmail(""); setNewUserName(""); setNewUserPass(""); setNewUserVmNo(""); fetchData(); }
     else alert("Error: " + res.error);
   };
 
@@ -1163,6 +1164,16 @@ export default function AdminPage() {
               <select value={newUserRole} onChange={(e) => setNewUserRole(e.target.value)} className="premium-input">
                 <option value="STUDENT">STUDENT</option><option value="FACULTY">TEACHER / FACULTY</option><option value="HOD">HOD</option><option value="ADMIN">ADMIN</option>
               </select>
+              {newUserRole !== "ADMIN" && (
+                <input 
+                  type="text" 
+                  placeholder={newUserRole === "STUDENT" ? "VM No (e.g. 17433)" : "VMS No (e.g. EMP-CSE-001)"} 
+                  value={newUserVmNo} 
+                  onChange={(e) => setNewUserVmNo(e.target.value)} 
+                  required 
+                  className="premium-input" 
+                />
+              )}
               <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem" }}>
                 <button type="submit" className="btn-royal" style={{ flex: 1 }}>Create User</button>
                 <button type="button" onClick={() => setShowUserModal(false)} style={{ backgroundColor: "rgba(255,255,255,0.1)", color: "var(--text-main)", padding: "0.75rem 1rem", borderRadius: "8px", border: "none" }}>Cancel</button>

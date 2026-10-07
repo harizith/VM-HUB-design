@@ -47,10 +47,10 @@ export async function GET(request: Request) {
       
       fullTimetable = await prisma.timetableEntry.findMany({
         where: {
-          facultyName: {
-            contains: searchStr,
-            mode: "insensitive"
-          }
+          OR: [
+            { vmsNo: user.vmNo || user.facultyProfile?.vmNo || "unknown" },
+            { facultyName: { contains: searchStr, mode: "insensitive" } }
+          ]
         },
         orderBy: [
           { dayOrder: "asc" },

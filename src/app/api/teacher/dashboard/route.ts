@@ -66,7 +66,7 @@ export async function GET(request: Request) {
             { vmsNo: user.vmNo || user.facultyProfile?.vmNo || "unknown" },
             { facultyName: { contains: searchStr, mode: "insensitive" } }
           ]
-        },
+        } as any,
         orderBy: {
           period: "asc"
         }
@@ -83,7 +83,7 @@ export async function GET(request: Request) {
             { audience: 'ALL' },
             { audience: 'FACULTY' }
           ]
-        },
+        } as any,
         orderBy: { createdAt: 'desc' },
         take: 3
       });

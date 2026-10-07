@@ -51,14 +51,14 @@ export async function GET(request: Request) {
     }
 
     const semester = user.studentProfile.semester || 3; 
-    let yearStr = user.studentProfile.year || "I";
-    let section = user.studentProfile.section || "A";
+    let yearStr = (user.studentProfile as any).year || "I";
+    let section = (user.studentProfile as any).section || "A";
     let rawDept = user.studentProfile.department || "CSE";
     let department = rawDept;
 
     const secMatch = rawDept.match(/\(Sec\s+([A-Z])\)/i);
     if (secMatch) {
-      if (!user.studentProfile.section) {
+      if (!(user.studentProfile as any).section) {
         section = secMatch[1].toUpperCase();
       }
       department = rawDept.replace(/\s*\(Sec\s+[A-Z]\)\s*/i, "").trim();
@@ -100,7 +100,7 @@ export async function GET(request: Request) {
             { audience: 'ALL' },
             { audience: 'STUDENT' }
           ]
-        },
+        } as any,
         orderBy: { createdAt: 'desc' },
         take: 3
       });

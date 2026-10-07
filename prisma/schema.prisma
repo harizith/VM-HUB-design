@@ -110,6 +110,7 @@ model TimetableEntry {
   subjectName String
   facultyName String
   roomNo      String
+  vmsNo       String?
   createdAt   DateTime @default(now())
   
   // @@unique([classId, dayOrder, period])

@@ -1,10 +1,24 @@
 "use client";
 
 import { UserCircle, Mail, Phone, Shield } from "lucide-react";
-import { useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
 
 export default function ProfilePage() {
-  const { data: session } = useSession();
+  const [session, setSession] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/auth/session")
+      .then(res => res.json())
+      .then(data => {
+        setSession(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, []);
 
   return (
     <div style={{ padding: "2rem" }}>
@@ -15,6 +29,9 @@ export default function ProfilePage() {
         <p style={{ color: "var(--text-muted)", margin: 0 }}>View and manage your personal details.</p>
       </header>
 
+      {loading ? (
+        <div style={{ textAlign: "center", padding: "3rem" }}>Loading profile...</div>
+      ) : (
       <div className="student-card premium-card" style={{ padding: "2rem", borderRadius: "16px", border: "1px solid var(--border-subtle)", maxWidth: "800px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "2rem", marginBottom: "2rem", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "2rem" }}>
           <div style={{ width: "100px", height: "100px", borderRadius: "50%", background: "linear-gradient(135deg, var(--royal-blue), var(--sky-blue))", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: "2.5rem", fontWeight: "bold" }}>
@@ -47,6 +64,7 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

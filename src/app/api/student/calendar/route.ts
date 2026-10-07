@@ -43,32 +43,32 @@ export async function GET(request: Request) {
     }
 
     const semester = user.studentProfile.semester || 3; 
-    let yearStr = "I";
-    if (semester === 3 || semester === 4) yearStr = "II";
-    if (semester === 5 || semester === 6) yearStr = "III";
-    if (semester === 7 || semester === 8) yearStr = "IV";
-
+    let yearStr = user.studentProfile.year || "I";
+    let section = user.studentProfile.section || "A";
     let rawDept = user.studentProfile.department || "CSE";
     let department = rawDept;
-    let section = "A";
 
     const secMatch = rawDept.match(/\(Sec\s+([A-Z])\)/i);
     if (secMatch) {
-      section = secMatch[1].toUpperCase();
+      if (!user.studentProfile.section) {
+        section = secMatch[1].toUpperCase();
+      }
       department = rawDept.replace(/\s*\(Sec\s+[A-Z]\)\s*/i, "").trim();
     }
-    const classId = `${yearStr}-${department}-${section}`;
+    const normalizedDept = department.replace(/^(B\.E\s+|B\.Tech\s+)/i, "").trim();
+    const classId = `${yearStr}-${normalizedDept}-${section}`;
 
     let fullTimetable: any[] = [];
     try {
-      fullTimetable = await prisma.$queryRaw`
-        SELECT "id", "classId", "dayOrder", "period", "timeRange", "subjectCode", "subjectName", "facultyName", "roomNo"
-        FROM "TimetableEntry"
-        WHERE "classId" = ${classId}
-        ORDER BY "dayOrder" ASC, "period" ASC
-      `;
+      fullTimetable = await prisma.timetableEntry.findMany({
+        where: { classId },
+        orderBy: [
+          { dayOrder: 'asc' },
+          { period: 'asc' }
+        ]
+      });
     } catch (e) {
-      console.error("Could not fetch timetable entries via raw query", e);
+      console.error("Could not fetch timetable entries via prisma client", e);
     }
 
     // Group by Day Order

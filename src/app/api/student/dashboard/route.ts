@@ -50,20 +50,17 @@ export async function GET(request: Request) {
       }, { status: 404 });
     }
 
-    // 2. Extract Details & Compute Class ID (e.g. 2nd year CSE A -> IICSEA)
     const semester = user.studentProfile.semester || 3; 
-    let yearStr = "I";
-    if (semester === 3 || semester === 4) yearStr = "II";
-    if (semester === 5 || semester === 6) yearStr = "III";
-    if (semester === 7 || semester === 8) yearStr = "IV";
-
+    let yearStr = user.studentProfile.year || "I";
+    let section = user.studentProfile.section || "A";
     let rawDept = user.studentProfile.department || "CSE";
     let department = rawDept;
-    let section = "A";
 
     const secMatch = rawDept.match(/\(Sec\s+([A-Z])\)/i);
     if (secMatch) {
-      section = secMatch[1].toUpperCase();
+      if (!user.studentProfile.section) {
+        section = secMatch[1].toUpperCase();
+      }
       department = rawDept.replace(/\s*\(Sec\s+[A-Z]\)\s*/i, "").trim();
     }
     
@@ -82,14 +79,17 @@ export async function GET(request: Request) {
     // 4. Fetch the timetable for the student's class and current day order
     let timetable: any[] = [];
     try {
-      timetable = await prisma.$queryRaw`
-        SELECT "id", "classId", "dayOrder", "period", "timeRange", "subjectCode", "subjectName", "facultyName", "roomNo"
-        FROM "TimetableEntry"
-        WHERE "classId" = ${classId} AND "dayOrder" = ${currentDayOrder}
-        ORDER BY "period" ASC
-      `;
+      timetable = await prisma.timetableEntry.findMany({
+        where: {
+          classId,
+          dayOrder: currentDayOrder
+        },
+        orderBy: {
+          period: 'asc'
+        }
+      });
     } catch (e) {
-      console.error("Could not fetch timetable entries via raw query", e);
+      console.error("Could not fetch timetable entries via prisma client", e);
     }
 
     // 5. Fetch recent notices

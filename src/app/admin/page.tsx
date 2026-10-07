@@ -26,7 +26,7 @@ interface UserItem {
   } | null;
 }
 interface DeptItem { id: string; code: string; name: string; hodName?: string; }
-interface SubjectItem { id: string; code: string; name: string; credits: number; semester: number; departmentCode: string; }
+interface SubjectItem { id: string; code: string; name: string; credits: number; semester: number; departmentCode: string; classesTaking?: string[]; facultiesHandling?: string[]; }
 interface NoticeItem { id: string; title: string; content: string; category: string; postedBy: string; createdAt: string; }
 interface TimetableEntry {
   id?: string;
@@ -1039,71 +1039,12 @@ export default function AdminPage() {
               </h4>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                {/* Dynamic faculty lookup from real database records */}
+                {/* Dynamic faculty lookup from database records */}
                 {(() => {
-                  // Real course mapping derived from official Vel Tech Multi Tech timetable schedules
-                  const realCourseHandlingMap: Record<string, Array<{ name: string; role: string; email: string; designation: string }>> = {
-                    "231MA302": [
-                      { name: "Dr. Mattuvarkuzhali", role: "Course Faculty Lead", email: "mattuvarkuzhali@veltech.edu.in", designation: "Professor • Dept of Mathematics" }
-                    ],
-                    "231CS323": [
-                      { name: "Mr. R. Prabhakaran", role: "Primary Theory Faculty (Sec A & C)", email: "prabhakaran@veltech.edu.in", designation: "Assistant Professor • Staff ID: EMP-CSE-001" },
-                      { name: "Mr. V. Nehru", role: "Theory Faculty (Sec B)", email: "nehru@veltech.edu.in", designation: "Assistant Professor • Staff ID: EMP-CSE-009" },
-                      { name: "Ms. R. Harini", role: "Lab & Practical Lead", email: "harini@veltech.edu.in", designation: "Assistant Professor • Staff ID: EMP-CSE-013" }
-                    ],
-                    "231CS321": [
-                      { name: "Ms. A. Vinothini", role: "Primary Theory Faculty (Sec A)", email: "vinothini@veltech.edu.in", designation: "Assistant Professor • Staff ID: EMP-CSE-004" },
-                      { name: "Ms. D. Parkavi", role: "Faculty In-Charge (Sec B)", email: "parkavi@veltech.edu.in", designation: "Assistant Professor • Staff ID: EMP-CSE-010" },
-                      { name: "Dr. E. Mercy Beulah", role: "Theory Faculty (Sec C)", email: "mercybeulah@veltech.edu.in", designation: "Professor • Staff ID: EMP-CSE-014" }
-                    ],
-                    "231CS322": [
-                      { name: "Ms. R. Kokila Priya", role: "Primary Faculty (Sec A & C)", email: "kokilapriya@veltech.edu.in", designation: "Assistant Professor • Staff ID: EMP-CSE-023" },
-                      { name: "Mr. V. Senthilkumar", role: "Faculty In-Charge (Sec B)", email: "senthilkumar@veltech.edu.in", designation: "Assistant Professor • Staff ID: EMP-CSE-031" }
-                    ],
-                    "231CS325": [
-                      { name: "Ms. S. Alfiya", role: "Course Coordinator (Sec A & C)", email: "alfiya@veltech.edu.in", designation: "Assistant Professor • Staff ID: EMP-CSE-006" },
-                      { name: "Ms. V. Divya", role: "Faculty In-Charge (Sec B)", email: "divya@veltech.edu.in", designation: "Assistant Professor • Staff ID: EMP-CSE-011" }
-                    ],
-                    "231CS324": [
-                      { name: "Mr. C. Pandi", role: "Primary Theory Faculty (Sec A & B)", email: "pandi@veltech.edu.in", designation: "Assistant Professor • Staff ID: EMP-CSE-005" },
-                      { name: "Ms. J. Bebitha", role: "Faculty In-Charge (Sec C)", email: "bebitha@veltech.edu.in", designation: "Assistant Professor • Staff ID: EMP-CSE-015" }
-                    ],
-                    "231IT521": [
-                      { name: "Ms. R. Harini", role: "Primary Faculty (Sec A & C)", email: "harini@veltech.edu.in", designation: "Assistant Professor • Staff ID: EMP-CSE-013" },
-                      { name: "Dr. K. Muthukannan", role: "Course Coordinator (Sec B)", email: "muthukannan@veltech.edu.in", designation: "Professor • Staff ID: EMP-CSE-021" }
-                    ],
-                    "231CS521": [
-                      { name: "Ms. V. Vijayashanthi", role: "Primary Theory Faculty (Sec A)", email: "vijayashanthi@veltech.edu.in", designation: "Assistant Professor • Staff ID: EMP-CSE-017" },
-                      { name: "Ms. R. Chandra", role: "Faculty In-Charge (Sec B)", email: "chandra@veltech.edu.in", designation: "Assistant Professor • Staff ID: EMP-CSE-022" },
-                      { name: "Ms. V. Divya", role: "Theory Faculty (Sec C)", email: "divya@veltech.edu.in", designation: "Assistant Professor • Staff ID: EMP-CSE-011" }
-                    ],
-                    "231CS522": [
-                      { name: "Mr. V. Nehru", role: "Course Lead (Sec A)", email: "nehru@veltech.edu.in", designation: "Assistant Professor • Staff ID: EMP-CSE-009" },
-                      { name: "Ms. M. Aswin Rani", role: "Faculty In-Charge (Sec B)", email: "aswinrani@veltech.edu.in", designation: "Assistant Professor • Staff ID: EMP-CSE-018" },
-                      { name: "Dr. R. Saravanan", role: "Senior Faculty (Sec C)", email: "saravanan@veltech.edu.in", designation: "Associate Professor • Staff ID: EMP-CSE-024" }
-                    ],
-                    "231HS701": [
-                      { name: "Dr. M. Buvana", role: "Course Coordinator (Sec A)", email: "buvana@veltech.edu.in", designation: "Professor • Staff ID: EMP-CSE-026" },
-                      { name: "Ms. J. Bebitha", role: "Faculty In-Charge (Sec B)", email: "bebitha@veltech.edu.in", designation: "Assistant Professor • Staff ID: EMP-CSE-015" },
-                      { name: "Ms. M. Aswin Rani", role: "Faculty In-Charge (Sec C)", email: "aswinrani@veltech.edu.in", designation: "Assistant Professor • Staff ID: EMP-CSE-018" }
-                    ],
-                    "231CB721": [
-                      { name: "Dr. B. Swaminathan", role: "Course Coordinator (Sec A)", email: "swaminathan@veltech.edu.in", designation: "Professor • Staff ID: EMP-CSE-027" },
-                      { name: "Dr. E. Mercy Beulah", role: "Faculty In-Charge (Sec B)", email: "mercybeulah@veltech.edu.in", designation: "Professor • Staff ID: EMP-CSE-014" },
-                      { name: "Mrs. M.K. Geetha", role: "Faculty In-Charge (Sec C)", email: "geetha@veltech.edu.in", designation: "Assistant Professor • Staff ID: EMP-CSE-025" }
-                    ],
-                    "231CS77A": [
-                      { name: "Dr. M. Buvana", role: "Project Lead (Sec A)", email: "buvana@veltech.edu.in", designation: "Professor • Staff ID: EMP-CSE-026" },
-                      { name: "Mr. S. Vinod", role: "Project Coordinator (Sec B)", email: "vinod@veltech.edu.in", designation: "Assistant Professor • Staff ID: EMP-CSE-002" },
-                      { name: "Dr. E. Mercy Beulah", role: "Project Lead (Sec C)", email: "mercybeulah@veltech.edu.in", designation: "Professor • Staff ID: EMP-CSE-014" }
-                    ]
-                  };
-
-                  const staffList = realCourseHandlingMap[selectedSubject.code] || [
-                    { name: "Mr. R. Prabhakaran", role: "Primary Course Coordinator", email: "prabhakaran@veltech.edu.in", designation: "Assistant Professor • Staff ID: EMP-CSE-001" },
-                    { name: "Mr. S. Vinod", role: "Lab In-Charge", email: "vinod@veltech.edu.in", designation: "Assistant Professor • Staff ID: EMP-CSE-002" },
-                    { name: "Ms. C.H. Yerakkama", role: "Department Overseer", email: "yerakkama@veltech.edu.in", designation: "Assistant Professor • Staff ID: EMP-CSE-003" }
-                  ];
+                  const staffList = selectedSubject.facultiesHandling || [];
+                  if (staffList.length === 0) {
+                    return <div style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>No faculty currently assigned in the timetable.</div>;
+                  }
 
                   return staffList.map((st, idx) => (
                     <div key={idx} style={{ backgroundColor: "var(--bg-page)", padding: "1rem", borderRadius: "10px", border: "1px solid var(--border-subtle)", display: "flex", gap: "0.75rem", alignItems: "center" }}>
@@ -1118,21 +1059,35 @@ export default function AdminPage() {
                         color: "white",
                         fontWeight: "700"
                       }}>
-                        {st.name.replace(/^(Mr|Ms|Mrs|Dr)\.?\s*/i, "").charAt(0)}
+                        {st.replace(/^(Mr|Ms|Mrs|Dr)\.?\s*/i, "").charAt(0)}
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <strong style={{ fontSize: "0.95rem" }}>{st.name}</strong>
+                          <strong style={{ fontSize: "0.95rem" }}>{st}</strong>
                           <span style={{ fontSize: "0.7rem", padding: "0.15rem 0.4rem", borderRadius: "4px", backgroundColor: idx === 0 ? "rgba(16,185,129,0.2)" : "rgba(56,189,248,0.2)", color: idx === 0 ? "#10b981" : "var(--sky-blue)", fontWeight: "700" }}>
-                            {st.role}
+                            Faculty
                           </span>
                         </div>
-                        <p style={{ fontSize: "0.8rem", color: "var(--sky-blue)", margin: "0.1rem 0 0 0" }}>{st.email}</p>
-                        <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: "0.1rem 0 0 0" }}>{st.designation}</p>
                       </div>
                     </div>
                   ));
                 })()}
+              </div>
+
+              {/* Classes Taking This Course */}
+              <h4 style={{ fontSize: "0.9rem", fontWeight: "700", color: "#a855f7", letterSpacing: "0.05em", marginBottom: "1rem", marginTop: "2rem" }}>
+                👥 CLASSES TAKING THIS COURSE
+              </h4>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
+                {selectedSubject.classesTaking && selectedSubject.classesTaking.length > 0 ? (
+                  selectedSubject.classesTaking.map((cls, idx) => (
+                    <span key={idx} style={{ padding: "0.5rem 1rem", backgroundColor: "rgba(168, 85, 247, 0.1)", color: "#a855f7", borderRadius: "8px", fontSize: "0.85rem", fontWeight: "700" }}>
+                      {cls}
+                    </span>
+                  ))
+                ) : (
+                  <div style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>No classes currently assigned in the timetable.</div>
+                )}
               </div>
             </div>
 

@@ -8,7 +8,29 @@ export async function GET() {
       orderBy: { code: "asc" }
     });
 
-    return NextResponse.json({ success: true, subjects });
+    // Also fetch timetable mappings to know who takes/handles this
+    let timetableEntries: any[] = [];
+    try {
+      timetableEntries = await prisma.timetableEntry.findMany({
+        select: { subjectCode: true, classId: true, facultyName: true }
+      });
+    } catch (e) {
+      console.error(e);
+    }
+
+    const enhancedSubjects = subjects.map(sub => {
+      const related = timetableEntries.filter(t => t.subjectCode === sub.code);
+      const classesTaking = Array.from(new Set(related.map(t => t.classId).filter(Boolean)));
+      const facultiesHandling = Array.from(new Set(related.map(t => t.facultyName).filter(Boolean)));
+      
+      return {
+        ...sub,
+        classesTaking,
+        facultiesHandling
+      };
+    });
+
+    return NextResponse.json({ success: true, subjects: enhancedSubjects });
   } catch (error: any) {
     console.error("Error fetching subjects:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

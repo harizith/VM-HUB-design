@@ -9,6 +9,45 @@ export default function HodDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  
+  // Notice form state
+  const [showNoticeForm, setShowNoticeForm] = useState(false);
+  const [noticeTitle, setNoticeTitle] = useState("");
+  const [noticeContent, setNoticeContent] = useState("");
+  const [noticeAudience, setNoticeAudience] = useState("ALL");
+  const [noticeCategory, setNoticeCategory] = useState("GENERAL");
+  const [postingNotice, setPostingNotice] = useState(false);
+
+  const handlePostNotice = async () => {
+    if (!noticeTitle.trim() || !noticeContent.trim()) return;
+    setPostingNotice(true);
+    try {
+      const res = await fetch("/api/hod/notices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: noticeTitle,
+          content: noticeContent,
+          audience: noticeAudience,
+          category: noticeCategory
+        })
+      });
+      const resData = await res.json();
+      if (resData.success) {
+        // Optimistically add to top of list
+        setData((prev: any) => ({
+          ...prev,
+          notices: [resData.data, ...(prev.notices || [])]
+        }));
+        setNoticeTitle("");
+        setNoticeContent("");
+        setShowNoticeForm(false);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setPostingNotice(false);
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -223,26 +262,113 @@ export default function HodDashboardPage() {
               <Megaphone size={18} /> Announcements
             </h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <div style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "1rem" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
-                  <span style={{ backgroundColor: "rgba(239, 68, 68, 0.1)", color: "#ef4444", padding: "0.1rem 0.4rem", borderRadius: "4px", fontSize: "0.65rem", fontWeight: "800", letterSpacing: "0.05em" }}>ADMIN</span>
-                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>2h ago</span>
+              {showNoticeForm ? (
+                <div style={{ padding: "1rem", backgroundColor: "var(--bg-card-header)", borderRadius: "8px", border: "1px solid var(--border-subtle)" }}>
+                  <input 
+                    type="text" 
+                    placeholder="Notice Title" 
+                    value={noticeTitle}
+                    onChange={(e) => setNoticeTitle(e.target.value)}
+                    style={{ width: "100%", padding: "0.5rem", marginBottom: "0.5rem", borderRadius: "4px", border: "1px solid var(--border-subtle)", backgroundColor: "var(--bg-main)", color: "var(--text-main)" }}
+                  />
+                  <textarea 
+                    placeholder="Notice details..."
+                    value={noticeContent}
+                    onChange={(e) => setNoticeContent(e.target.value)}
+                    style={{ width: "100%", padding: "0.5rem", marginBottom: "0.5rem", borderRadius: "4px", border: "1px solid var(--border-subtle)", minHeight: "80px", backgroundColor: "var(--bg-main)", color: "var(--text-main)" }}
+                  />
+                  <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                    <select 
+                      value={noticeAudience} 
+                      onChange={(e) => setNoticeAudience(e.target.value)}
+                      style={{ flex: 1, padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--border-subtle)", backgroundColor: "var(--bg-main)", color: "var(--text-main)" }}
+                    >
+                      <option value="ALL">All (Students & Faculty)</option>
+                      <option value="STUDENT">Students Only</option>
+                      <option value="FACULTY">Faculty Only</option>
+                    </select>
+                    <select 
+                      value={noticeCategory} 
+                      onChange={(e) => setNoticeCategory(e.target.value)}
+                      style={{ flex: 1, padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--border-subtle)", backgroundColor: "var(--bg-main)", color: "var(--text-main)" }}
+                    >
+                      <option value="GENERAL">General</option>
+                      <option value="URGENT">Urgent</option>
+                      <option value="EXAM">Exam</option>
+                    </select>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <button 
+                      onClick={handlePostNotice}
+                      disabled={postingNotice}
+                      style={{ flex: 1, padding: "0.5rem", backgroundColor: "var(--royal-blue)", color: "#fff", border: "none", borderRadius: "4px", fontWeight: "600", cursor: postingNotice ? "not-allowed" : "pointer" }}
+                    >
+                      {postingNotice ? "Posting..." : "Post Notice"}
+                    </button>
+                    <button 
+                      onClick={() => setShowNoticeForm(false)}
+                      style={{ padding: "0.5rem", backgroundColor: "transparent", color: "var(--text-muted)", border: "1px solid var(--border-subtle)", borderRadius: "4px", fontWeight: "600", cursor: "pointer" }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
-                <h4 style={{ margin: "0 0 0.25rem 0", fontSize: "0.95rem", color: "var(--text-main)" }}>HOD Meeting</h4>
-                <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--text-muted)" }}>Principal's office at 2 PM regarding accreditations.</p>
-              </div>
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
-                  <span style={{ backgroundColor: "rgba(56, 189, 248, 0.1)", color: "var(--sky-blue)", padding: "0.1rem 0.4rem", borderRadius: "4px", fontSize: "0.65rem", fontWeight: "800", letterSpacing: "0.05em" }}>INFO</span>
-                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Yesterday</span>
-                </div>
-                <h4 style={{ margin: "0 0 0.25rem 0", fontSize: "0.95rem", color: "var(--text-main)" }}>Mid-Semester Evaluation</h4>
-                <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--text-muted)" }}>Ensure all faculty upload marks by EOD Friday.</p>
-              </div>
+              ) : (
+                data?.notices && data.notices.length > 0 ? (
+                  data.notices.map((notice: any) => {
+                    let badgeColor = "rgba(79, 70, 229, 0.1)";
+                    let textColor = "#4f46e5";
+                    
+                    if (notice.category === "URGENT") {
+                      badgeColor = "rgba(239, 68, 68, 0.1)";
+                      textColor = "#ef4444";
+                    } else if (notice.category === "EXAM") {
+                      badgeColor = "rgba(217, 119, 6, 0.1)";
+                      textColor = "#d97706";
+                    }
+
+                    const now = new Date();
+                    const noticeDate = new Date(notice.createdAt);
+                    const diffMs = now.getTime() - noticeDate.getTime();
+                    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                    let timeStr = "";
+                    
+                    if (diffHours < 24) {
+                      timeStr = diffHours === 0 ? "Just now" : `${diffHours}h ago`;
+                    } else {
+                      const diffDays = Math.floor(diffHours / 24);
+                      timeStr = `${diffDays}d ago`;
+                    }
+
+                    return (
+                      <div key={notice.id} style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "1rem" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
+                          <span style={{ backgroundColor: badgeColor, color: textColor, padding: "0.1rem 0.4rem", borderRadius: "4px", fontSize: "0.65rem", fontWeight: "800", letterSpacing: "0.05em" }}>{notice.category || "GENERAL"}</span>
+                          {notice.audience !== "ALL" && (
+                            <span style={{ backgroundColor: "var(--bg-card-header)", color: "var(--text-muted)", padding: "0.1rem 0.4rem", borderRadius: "4px", fontSize: "0.6rem", fontWeight: "800", letterSpacing: "0.05em", border: "1px solid var(--border-subtle)" }}>
+                              {notice.audience}
+                            </span>
+                          )}
+                          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginLeft: "auto" }}>{timeStr}</span>
+                        </div>
+                        <h4 style={{ margin: "0 0 0.25rem 0", fontSize: "0.95rem", color: "var(--text-main)" }}>{notice.title}</h4>
+                        <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--text-muted)" }}>{notice.content}</p>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", textAlign: "center", padding: "1rem 0" }}>No recent notices</div>
+                )
+              )}
             </div>
-            <button style={{ width: "100%", marginTop: "1rem", padding: "0.6rem", background: "none", border: "1px solid var(--border-subtle)", borderRadius: "8px", color: "var(--text-main)", fontSize: "0.8rem", fontWeight: "600", cursor: "pointer" }}>
-              Post New Notice
-            </button>
+            {!showNoticeForm && (
+              <button 
+                onClick={() => setShowNoticeForm(true)}
+                style={{ width: "100%", marginTop: "1rem", padding: "0.6rem", background: "none", border: "1px solid var(--border-subtle)", borderRadius: "8px", color: "var(--text-main)", fontSize: "0.8rem", fontWeight: "600", cursor: "pointer" }}
+              >
+                Post New Notice
+              </button>
+            )}
           </div>
           
         </div>

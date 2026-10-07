@@ -75,6 +75,22 @@ export async function GET(request: Request) {
       console.error("Could not fetch timetable entries", e);
     }
 
+    let notices: any[] = [];
+    try {
+      notices = await prisma.notice.findMany({
+        where: {
+          OR: [
+            { audience: 'ALL' },
+            { audience: 'FACULTY' }
+          ]
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 3
+      });
+    } catch (e) {
+      console.error("Could not fetch notices", e);
+    }
+
     return NextResponse.json({
       success: true,
       data: {
@@ -86,7 +102,8 @@ export async function GET(request: Request) {
         },
         currentDayOrder,
         tomorrowDayOrder,
-        timetable
+        timetable,
+        notices
       }
     });
 

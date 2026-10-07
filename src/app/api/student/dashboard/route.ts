@@ -92,10 +92,15 @@ export async function GET(request: Request) {
       console.error("Could not fetch timetable entries via prisma client", e);
     }
 
-    // 5. Fetch recent notices
     let notices: any[] = [];
     try {
       notices = await prisma.notice.findMany({
+        where: {
+          OR: [
+            { audience: 'ALL' },
+            { audience: 'STUDENT' }
+          ]
+        },
         orderBy: { createdAt: 'desc' },
         take: 3
       });

@@ -89,6 +89,7 @@ model Notice {
   title     String
   content   String
   category  String   @default("GENERAL") // GENERAL, URGENT, EXAM
+  audience  String   @default("ALL") // ALL, STUDENT, FACULTY
   postedBy  String   @default("Admin")
   createdAt DateTime @default(now())
 }

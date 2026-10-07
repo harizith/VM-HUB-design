@@ -91,6 +91,9 @@ export default function AdminPage() {
   const [newUserPass, setNewUserPass] = useState("");
   const [newUserRole, setNewUserRole] = useState("STUDENT");
   const [newUserVmNo, setNewUserVmNo] = useState("");
+  const [newUserDept, setNewUserDept] = useState("CSE");
+  const [newUserYear, setNewUserYear] = useState("I");
+  const [newUserSection, setNewUserSection] = useState("A");
 
   // Dept Form
   const [newDeptCode, setNewDeptCode] = useState("");
@@ -161,7 +164,7 @@ export default function AdminPage() {
     const res = await fetch("/api/admin/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: newUserEmail, name: newUserName, password: newUserPass, role: newUserRole, vmNo: newUserVmNo }),
+      body: JSON.stringify({ email: newUserEmail, name: newUserName, password: newUserPass, role: newUserRole, vmNo: newUserVmNo, department: newUserDept, year: newUserYear, section: newUserSection }),
     }).then((r) => r.json());
 
     if (res.success) { setShowUserModal(false); setNewUserEmail(""); setNewUserName(""); setNewUserPass(""); setNewUserVmNo(""); fetchData(); }
@@ -1173,6 +1176,27 @@ export default function AdminPage() {
                   required 
                   className="premium-input" 
                 />
+              )}
+              {newUserRole === "STUDENT" && (
+                <div style={{ display: "flex", gap: "0.75rem" }}>
+                  <select value={newUserDept} onChange={(e) => setNewUserDept(e.target.value)} className="premium-input" style={{ flex: 1 }}>
+                    <option value="CSE">CSE</option>
+                    <option value="IT">IT</option>
+                    <option value="ECE">ECE</option>
+                    <option value="MECH">MECH</option>
+                  </select>
+                  <select value={newUserYear} onChange={(e) => setNewUserYear(e.target.value)} className="premium-input" style={{ flex: 1 }}>
+                    <option value="I">Year I</option>
+                    <option value="II">Year II</option>
+                    <option value="III">Year III</option>
+                    <option value="IV">Year IV</option>
+                  </select>
+                  <select value={newUserSection} onChange={(e) => setNewUserSection(e.target.value)} className="premium-input" style={{ flex: 1 }}>
+                    <option value="A">Section A</option>
+                    <option value="B">Section B</option>
+                    <option value="C">Section C</option>
+                  </select>
+                </div>
               )}
               <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem" }}>
                 <button type="submit" className="btn-royal" style={{ flex: 1 }}>Create User</button>

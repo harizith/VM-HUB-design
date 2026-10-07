@@ -1,6 +1,6 @@
 import crypto from "crypto";
 
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || "default_secret_key_32_bytes_long!"; // Must be 256 bytes (32 characters)
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || "default_secret_key_32_bytes_long"; // Must be 32 bytes
 const IV_LENGTH = 16; // For AES, this is always 16
 
 export function encrypt(text: string) {

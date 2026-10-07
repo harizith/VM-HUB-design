@@ -97,7 +97,28 @@ export async function POST(req: Request) {
       )
     `;
 
-    // 3. Log audit event
+    // 3. Insert StudentProfile if STUDENT
+    if (validRole === "STUDENT") {
+      const dept = body.department || "CSE";
+      const year = body.year || "I";
+      const sec = body.section || "A";
+      
+      await prisma.$executeRaw`
+        INSERT INTO "StudentProfile" ("userEmail", "rollNumber", "department", "semester", "batch", "year", "section", "createdAt")
+        VALUES (
+          ${cleanEmail},
+          ${cleanVmNo || newId},
+          ${dept},
+          1,
+          '2023-2027',
+          ${year},
+          ${sec},
+          NOW()
+        )
+      `;
+    }
+
+    // 4. Log audit event
     try {
       const logId = crypto.randomUUID();
       await prisma.$executeRaw`

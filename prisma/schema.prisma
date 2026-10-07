@@ -45,6 +45,8 @@ model StudentProfile {
   department  String
   semester    Int      @default(1)
   batch       String   @default("2023-2027")
+  year        String   @default("I")
+  section     String   @default("A")
   createdAt   DateTime @default(now())
 }
 

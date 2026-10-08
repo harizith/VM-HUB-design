@@ -15,28 +15,10 @@ export async function GET(request: Request) {
 
     const email = session.user.email;
 
-    let user = await prisma.user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { email },
       include: { studentProfile: true }
     });
-
-    if (!user) {
-      const um = await prisma.userMode.findUnique({ where: { emailid: email }});
-      if (um) {
-        user = {
-          name: um.emailid.split("@")[0],
-          vmNo: um.vmno,
-          email: um.emailid,
-          role: um.usermode.toUpperCase(),
-          studentProfile: {
-             department: "CSE",
-             semester: 5,
-             section: "A",
-             rollNumber: um.vmno
-          }
-        } as any;
-      }
-    }
 
     if (!user || !user.studentProfile) {
       return NextResponse.json({ success: false, error: "No student profile found." }, { status: 404 });

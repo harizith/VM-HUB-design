@@ -49,6 +49,7 @@ export async function POST(request: Request) {
           const subjectCode = getVal(row, ['subjectcode', 'subcode']).trim();
           const subjectName = getVal(row, ['subjectname', 'subject', 'subname', 'course']).trim();
           const facultyName = getVal(row, ['facultyname', 'faculty', 'staff', 'teacher', 'instructor']).trim();
+          const vmsNo = getVal(row, ['vtmt no/vmno', 'vmsno', 'vtmtno', 'vmno', 'facultyvmsno', 'facultyvmno']).trim() || null;
           const roomNo = getVal(row, ['roomno', 'room', 'hall']).trim();
           const timeRange = getVal(row, ['timerange', 'time', 'timing']).trim() || `Period ${period}`;
           const currentClassId = getVal(row, ['classid', 'class']).trim() || classId;
@@ -128,9 +129,16 @@ export async function POST(request: Request) {
               existingTt.subjectName === subjectName &&
               existingTt.facultyName === facultyName &&
               existingTt.roomNo === roomNo &&
-              existingTt.timeRange === timeRange;
+              existingTt.timeRange === timeRange &&
+              (!vmsNo || !existingTt.vmsNo || existingTt.vmsNo === vmsNo);
 
             if (isExactMatch) {
+              if (vmsNo && !existingTt.vmsNo) {
+                await prisma.timetableEntry.update({
+                  where: { id: existingTt.id },
+                  data: { vmsNo }
+                });
+              }
               skippedCount++;
             } else {
               conflicts.push({
@@ -143,14 +151,16 @@ export async function POST(request: Request) {
                   subjectName: existingTt.subjectName,
                   facultyName: existingTt.facultyName,
                   roomNo: existingTt.roomNo,
-                  timeRange: existingTt.timeRange
+                  timeRange: existingTt.timeRange,
+                  vmsNo: existingTt.vmsNo
                 },
                 newData: {
                   subjectCode,
                   subjectName,
                   facultyName,
                   roomNo,
-                  timeRange
+                  timeRange,
+                  vmsNo
                 }
               });
             }
@@ -165,7 +175,8 @@ export async function POST(request: Request) {
                 subjectName,
                 facultyName,
                 roomNo,
-                timeRange
+                timeRange,
+                vmsNo
               }
             });
             totalInserted++;

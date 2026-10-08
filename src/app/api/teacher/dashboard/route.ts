@@ -51,26 +51,16 @@ export async function GET(request: Request) {
     // 3. Compute Day Order dynamically
     const { currentDayOrder, tomorrowDayOrder } = await getDayOrderInfo();
 
-    // 4. Fetch the timetable for the teacher (all classes they teach today)
-    // We use a smart string match to find their classes even if they have "Mr." or "Dr." in the timetable.
-    // We use the exact name from the profile to match within the timetable string.
-    // If the user includes their initial (e.g. "Karthick V"), it won't match "Karthick P".
+    // 4. Fetch today's timetable by the faculty VM number stored on each entry.
+    const vmNo = user.vmNo || user.facultyProfile?.vmNo;
     let timetable: any[] = [];
     try {
-      const searchStr = user.name.trim();
-      
-      timetable = await prisma.timetableEntry.findMany({
-        where: {
-          dayOrder: currentDayOrder,
-          OR: [
-            { vmsNo: user.vmNo || user.facultyProfile?.vmNo || "unknown" },
-            { facultyName: { contains: searchStr, mode: "insensitive" } }
-          ]
-        } as any,
-        orderBy: {
-          period: "asc"
-        }
-      });
+      if (vmNo) {
+        timetable = await prisma.timetableEntry.findMany({
+          where: { dayOrder: currentDayOrder, vmsNo: vmNo.trim() },
+          orderBy: { period: "asc" }
+        });
+      }
     } catch (e) {
       console.error("Could not fetch timetable entries", e);
     }
@@ -96,7 +86,7 @@ export async function GET(request: Request) {
       data: {
         teacher: {
           name: user.name,
-          vmNo: user.vmNo || user.facultyProfile?.vmNo,
+          vmNo,
           department: user.facultyProfile?.department || "CSE",
           designation: user.facultyProfile?.designation || "Faculty"
         },

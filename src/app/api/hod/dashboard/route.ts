@@ -50,23 +50,16 @@ export async function GET(request: Request) {
     // 3. Compute Day Order dynamically
     const { currentDayOrder, tomorrowDayOrder } = await getDayOrderInfo();
 
-    // 4. Fetch the timetable for the HOD (all classes they teach today, if any)
+    // 4. Fetch today's timetable by the HOD's VM number stored on each entry.
+    const vmNo = user.vmNo || user.hodProfile?.vmNo || user.facultyProfile?.vmNo;
     let timetable: any[] = [];
     try {
-      const searchStr = user.name.trim();
-      
-      timetable = await prisma.timetableEntry.findMany({
-        where: {
-          dayOrder: currentDayOrder,
-          OR: [
-            { vmsNo: user.vmNo || user.hodProfile?.vmNo || user.facultyProfile?.vmNo || "unknown" },
-            { facultyName: { contains: searchStr, mode: "insensitive" } }
-          ]
-        } as any,
-        orderBy: {
-          period: "asc"
-        }
-      });
+      if (vmNo) {
+        timetable = await prisma.timetableEntry.findMany({
+          where: { dayOrder: currentDayOrder, vmsNo: vmNo.trim() },
+          orderBy: { period: "asc" }
+        });
+      }
     } catch (e) {
       console.error("Could not fetch timetable entries", e);
     }
@@ -93,7 +86,7 @@ export async function GET(request: Request) {
       data: {
         hod: {
           name: user.name,
-          vmNo: user.vmNo || user.hodProfile?.vmNo || user.facultyProfile?.vmNo,
+          vmNo,
           department: user.hodProfile?.department || user.facultyProfile?.department || "CSE",
           designation: user.hodProfile?.designation || "Head of Department"
         },

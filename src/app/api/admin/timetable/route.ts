@@ -53,7 +53,8 @@ export async function PUT(request: Request) {
           subjectCode: entry.subjectCode,
           subjectName: entry.subjectName,
           facultyName: entry.facultyName,
-          roomNo: entry.roomNo
+          roomNo: entry.roomNo,
+          vmsNo: typeof entry.vmsNo === 'string' ? entry.vmsNo.trim() || null : null
         }))
       });
 

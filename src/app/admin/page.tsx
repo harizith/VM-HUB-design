@@ -38,6 +38,7 @@ interface TimetableEntry {
   subjectName: string;
   facultyName: string;
   roomNo: string;
+  vmsNo?: string | null;
 }
 
 
@@ -793,6 +794,11 @@ export default function AdminPage() {
                                       <input type="text" placeholder="Faculty" value={entry?.facultyName || ""} onChange={(e) => {
                                         const newTt = [...timetable];
                                         if (entryIdx !== -1) newTt[entryIdx].facultyName = e.target.value;
+                                        setTimetable(newTt);
+                                      }} style={{ width: "100%", padding: "0.25rem", fontSize: "0.8rem", borderRadius: "4px", border: "1px solid var(--border-subtle)", backgroundColor: "var(--bg-input)", color: "var(--text-main)" }} />
+                                      <input type="text" placeholder="Faculty VM No" value={entry?.vmsNo || ""} onChange={(e) => {
+                                        const newTt = [...timetable];
+                                        if (entryIdx !== -1) newTt[entryIdx].vmsNo = e.target.value;
                                         setTimetable(newTt);
                                       }} style={{ width: "100%", padding: "0.25rem", fontSize: "0.8rem", borderRadius: "4px", border: "1px solid var(--border-subtle)", backgroundColor: "var(--bg-input)", color: "var(--text-main)" }} />
                                       <input type="text" placeholder="Room No" value={entry?.roomNo || ""} onChange={(e) => {

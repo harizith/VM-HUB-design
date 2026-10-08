@@ -42,21 +42,14 @@ export async function GET(request: Request) {
     }
 
     let fullTimetable: any[] = [];
+    const vmNo = user.vmNo || user.facultyProfile?.vmNo;
     try {
-      const searchStr = user.name.trim();
-      
-      fullTimetable = await prisma.timetableEntry.findMany({
-        where: {
-          OR: [
-            { vmsNo: user.vmNo || user.facultyProfile?.vmNo || "unknown" },
-            { facultyName: { contains: searchStr, mode: "insensitive" } }
-          ]
-        },
-        orderBy: [
-          { dayOrder: "asc" },
-          { period: "asc" }
-        ]
-      });
+      if (vmNo) {
+        fullTimetable = await prisma.timetableEntry.findMany({
+          where: { vmsNo: vmNo.trim() },
+          orderBy: [{ dayOrder: "asc" }, { period: "asc" }]
+        });
+      }
     } catch (e) {
       console.error("Could not fetch timetable entries", e);
     }

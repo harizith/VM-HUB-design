@@ -18,30 +18,10 @@ export async function GET(request: Request) {
     const email = session.user.email;
 
     // 1. Fetch the logged in user
-    let user = await prisma.user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { email },
       include: { studentProfile: true }
     });
-
-    // Fallback: If not found in User OR studentProfile is missing, they might be in UserMode (from older schema)
-    if (!user || !user.studentProfile) {
-      const um = await prisma.userMode.findUnique({ where: { emailid: email }});
-      if (um) {
-        user = {
-          name: user?.name || um.emailid.split("@")[0],
-          vmNo: user?.vmNo || um.vmno,
-          email: um.emailid,
-          role: um.usermode.toUpperCase(),
-          status: user?.status || "ACTIVE",
-          studentProfile: {
-             department: "CSE",
-             semester: 5,
-             section: "A",
-             rollNumber: um.vmno
-          }
-        } as any;
-      }
-    }
 
     if (!user || !user.studentProfile) {
       return NextResponse.json({ 

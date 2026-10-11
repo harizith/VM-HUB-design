@@ -40,10 +40,6 @@ export default function HodLayout({ children }: { children: React.ReactNode }) {
               <Briefcase size={18} />
               <span>Department</span>
             </Link>
-            <Link href="/hod/schedule" className={`student-nav-item ${pathname === "/hod/schedule" ? "active" : ""}`} title="My Schedule">
-              <Calendar size={18} />
-              <span>My Schedule</span>
-            </Link>
             <Link href="/hod/courses" className={`student-nav-item ${pathname === "/hod/courses" ? "active" : ""}`} title="Courses">
               <BookOpen size={18} />
               <span>Courses</span>

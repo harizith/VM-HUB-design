@@ -36,10 +36,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Home size={18} />
               <span>Dashboard</span>
             </Link>
-            <Link href="/student/calendar" className={`student-nav-item ${pathname === "/student/calendar" ? "active" : ""}`} title="Calendar">
-              <Calendar size={18} />
-              <span>Calendar</span>
-            </Link>
           </div>
         </div>
 

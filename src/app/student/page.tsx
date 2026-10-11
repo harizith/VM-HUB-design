@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Users, Megaphone, Calendar as CalendarIcon } from "lucide-react";
+import OverallTimetable from "@/components/OverallTimetable";
 
 export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
@@ -222,6 +223,16 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Overall Timetable Section at Bottom */}
+      <OverallTimetable
+        fullTimetable={data?.fullTimetable}
+        currentDayOrder={data?.currentDayOrder}
+        title="Weekly Class Timetable"
+        subtitle={`Schedule for Class ${data?.student?.classId || "N/A"}`}
+        mode="student"
+        classId={data?.student?.classId}
+      />
     </main>
   );
 }

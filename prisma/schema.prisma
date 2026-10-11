@@ -28,6 +28,8 @@ model User {
   studentProfile StudentProfile?
   facultyProfile FacultyProfile?
   hodProfile     HodProfile?
+  auditLogs      AuditLog[]
+  notices        Notice[]
 }
 
 model UserMode {
@@ -39,49 +41,58 @@ model UserMode {
 }
 
 model StudentProfile {
-  userEmail   String   @id
-  user        User     @relation(fields: [userEmail], references: [email], onDelete: Cascade)
-  rollNumber  String   @unique
+  userEmail   String     @id
+  user        User       @relation(fields: [userEmail], references: [email], onDelete: Cascade)
+  rollNumber  String     @unique
   department  String
-  semester    Int      @default(1)
-  batch       String   @default("2023-2027")
-  year        String   @default("I")
-  section     String   @default("A")
-  createdAt   DateTime @default(now())
+  dept        Department @relation(fields: [department], references: [code], onDelete: Cascade)
+  semester    Int        @default(1)
+  batch       String     @default("2023-2027")
+  year        String     @default("I")
+  section     String     @default("A")
+  createdAt   DateTime   @default(now())
 }
 
 model FacultyProfile {
-  vmNo        String   @id
-  user        User     @relation(fields: [vmNo], references: [vmNo], onDelete: Cascade)
+  vmNo        String     @id
+  user        User       @relation(fields: [vmNo], references: [vmNo], onDelete: Cascade)
   department  String
-  designation String   @default("Assistant Professor")
-  createdAt   DateTime @default(now())
+  dept        Department @relation(fields: [department], references: [code], onDelete: Cascade)
+  designation String     @default("Assistant Professor")
+  createdAt   DateTime   @default(now())
 }
 
 model HodProfile {
-  vmNo        String   @id
-  user        User     @relation(fields: [vmNo], references: [vmNo], onDelete: Cascade)
+  vmNo        String     @id
+  user        User       @relation(fields: [vmNo], references: [vmNo], onDelete: Cascade)
   department  String
-  designation String   @default("Head of Department")
-  createdAt   DateTime @default(now())
+  dept        Department @relation(fields: [department], references: [code], onDelete: Cascade)
+  designation String     @default("Head of Department")
+  createdAt   DateTime   @default(now())
 }
 
 model Department {
-  id        String   @id @default(uuid())
-  code      String   @unique // e.g. CSE, ECE, MECH
-  name      String   // e.g. Computer Science and Engineering
-  hodName   String?  
-  createdAt DateTime @default(now())
+  id              String           @id @default(uuid())
+  code            String           @unique // e.g. CSE, ECE, MECH
+  name            String           // e.g. Computer Science and Engineering
+  hodName         String?  
+  createdAt       DateTime         @default(now())
+
+  subjects        Subject[]
+  studentProfiles StudentProfile[]
+  facultyProfiles FacultyProfile[]
+  hodProfiles     HodProfile[]
 }
 
 model Subject {
-  id             String   @id @default(uuid())
-  code           String   @unique // Subject code
-  name           String   // e.g. Computer Networks
-  credits        Int      @default(3)
-  semester       Int      @default(5)
-  departmentCode String   @default("CSE")
-  createdAt      DateTime @default(now())
+  id             String     @id @default(uuid())
+  code           String     @unique // Subject code
+  name           String     // e.g. Computer Networks
+  credits        Int        @default(3)
+  semester       Int        @default(5)
+  departmentCode String     @default("CSE")
+  department     Department @relation(fields: [departmentCode], references: [code], onDelete: Cascade)
+  createdAt      DateTime   @default(now())
 }
 
 model Notice {
@@ -91,16 +102,31 @@ model Notice {
   category  String   @default("GENERAL") // GENERAL, URGENT, EXAM
   audience  String   @default("ALL") // ALL, STUDENT, FACULTY
   postedBy  String   @default("Admin")
+  authorId  String?
+  author    User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
+
+  @@index([postedBy])
 }
-
-
 
 model SystemSetting {
   id        String   @id @default(uuid())
   key       String   @unique
   value     String
   updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  action      String
+  details     String
+  performedBy String   @default("Admin")
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+
+  @@index([action])
+  @@index([createdAt])
 }
 
 model TimetableEntry {
@@ -116,7 +142,8 @@ model TimetableEntry {
   vmsNo       String?
   createdAt   DateTime @default(now())
   
-  // @@unique([classId, dayOrder, period])
+  @@index([classId, dayOrder])
+  @@index([vmsNo])
 }
 
 model Attendance {
@@ -132,4 +159,6 @@ model Attendance {
   createdAt   DateTime @default(now())
 
   @@unique([studentId, dateString, period])
+  @@index([classId, dateString])
 }
+

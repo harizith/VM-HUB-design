@@ -70,3 +70,23 @@ export async function PUT(request: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const classId = searchParams.get('classId');
+
+    if (!classId) {
+      return NextResponse.json({ success: false, error: 'classId is required' }, { status: 400 });
+    }
+
+    const deleted = await prisma.timetableEntry.deleteMany({
+      where: { classId }
+    });
+
+    return NextResponse.json({ success: true, count: deleted.count });
+  } catch (error: any) {
+    console.error('Failed to delete timetable:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}

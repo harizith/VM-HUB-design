@@ -34,7 +34,7 @@ export async function GET() {
     const normalizedVmNo = vmNo?.trim();
     const entries = normalizedVmNo
       ? await prisma.timetableEntry.findMany({
-          where: { vmsNo: normalizedVmNo },
+          where: { vmsNo: { contains: normalizedVmNo } },
           orderBy: [{ dayOrder: "asc" }, { period: "asc" }]
         })
       : [];

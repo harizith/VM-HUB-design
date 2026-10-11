@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import { Users, Megaphone, Calendar as CalendarIcon, BookOpen, Clock, ChevronRight, Activity, TrendingUp, CheckCircle, AlertCircle } from "lucide-react";
 import Link from "next/link";
+import OverallTimetable from "@/components/OverallTimetable";
 
 export default function TeacherDashboardPage() {
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [selectedTimelineDay, setSelectedTimelineDay] = useState<string>("I");
 
   useEffect(() => {
     setMounted(true);
@@ -19,6 +21,9 @@ export default function TeacherDashboardPage() {
       .then(res => {
         if (res.success) {
           setData(res.data);
+          if (res.data.currentDayOrder && res.data.currentDayOrder !== "Leave") {
+            setSelectedTimelineDay(res.data.currentDayOrder);
+          }
         }
         setLoading(false);
       })
@@ -35,20 +40,22 @@ export default function TeacherDashboardPage() {
   const dateStr = currentTime.toLocaleDateString("en-US", { weekday: 'long', day: 'numeric', month: 'long' });
   const timeStr = currentTime.toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit' });
 
-  // Get active period logic (Simplified based on current time)
-  const currentHour = currentTime.getHours();
+  // Period timing calculation for Vel Tech Multi Tech college schedule
+  const currentMins = currentTime.getHours() * 60 + currentTime.getMinutes();
+  const isCollegeHours = currentMins >= 480 && currentMins <= 945; // 8:00 AM to 3:45 PM
   let activePeriod = 0;
-  if (currentHour >= 8 && currentHour < 9) activePeriod = 1;
-  else if (currentHour >= 9 && currentHour < 10) activePeriod = 2;
-  else if (currentHour >= 10 && currentHour < 11) activePeriod = 3;
-  else if (currentHour >= 11 && currentHour < 12) activePeriod = 4;
-  else if (currentHour >= 12 && currentHour < 13) activePeriod = 5;
-  else if (currentHour >= 13 && currentHour < 14) activePeriod = 6;
-  else if (currentHour >= 14 && currentHour < 15) activePeriod = 7;
-  else if (currentHour >= 15 && currentHour < 16) activePeriod = 8;
+  if (currentMins >= 480 && currentMins < 535) activePeriod = 1;       // 08:05 - 08:55
+  else if (currentMins >= 535 && currentMins < 590) activePeriod = 2;  // 08:55 - 09:45
+  else if (currentMins >= 595 && currentMins < 650) activePeriod = 3;  // 10:00 - 10:50
+  else if (currentMins >= 650 && currentMins < 710) activePeriod = 4;  // 10:50 - 11:40
+  else if (currentMins >= 735 && currentMins < 785) activePeriod = 5;  // 12:20 - 01:05
+  else if (currentMins >= 785 && currentMins < 840) activePeriod = 6;  // 01:05 - 01:50
+  else if (currentMins >= 840 && currentMins < 890) activePeriod = 7;  // 02:00 - 02:45
+  else if (currentMins >= 890 && currentMins <= 945) activePeriod = 8; // 02:45 - 03:30
 
-  const happeningNow = data?.timetable?.find((t: any) => t.period === activePeriod);
-  const upNext = data?.timetable?.find((t: any) => t.period === activePeriod + 1);
+  const todayEntries = data?.fullTimetable?.[data?.currentDayOrder] || data?.timetable || [];
+  const happeningNow = isCollegeHours ? todayEntries.find((t: any) => t.period === activePeriod) : null;
+  const upNext = isCollegeHours ? todayEntries.find((t: any) => t.period === activePeriod + 1) : todayEntries[0];
 
   if (loading) {
     return (
@@ -123,12 +130,18 @@ export default function TeacherDashboardPage() {
           <div className="student-banner" style={{ background: "linear-gradient(135deg, var(--royal-blue) 0%, #1e3a8a 100%)", borderRadius: "16px", padding: "2rem", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 10px 25px -5px rgba(29, 78, 216, 0.4)" }}>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem" }}>
-                <span style={{ display: "inline-flex", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#22c55e", boxShadow: "0 0 10px #22c55e" }}></span>
-                <span style={{ fontSize: "0.85rem", fontWeight: "700", letterSpacing: "0.05em", color: "rgba(255,255,255,0.8)" }}>HAPPENING NOW (PERIOD {activePeriod || 1})</span>
+                <span style={{ display: "inline-flex", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: isCollegeHours && happeningNow ? "#22c55e" : "#f59e0b", boxShadow: isCollegeHours && happeningNow ? "0 0 10px #22c55e" : "0 0 10px #f59e0b" }}></span>
+                <span style={{ fontSize: "0.85rem", fontWeight: "700", letterSpacing: "0.05em", color: "rgba(255,255,255,0.8)" }}>
+                  {isCollegeHours ? `HAPPENING NOW (PERIOD ${activePeriod || 1})` : "OFF-COLLEGE HOURS"}
+                </span>
               </div>
-              <h2 style={{ fontSize: "2.2rem", fontWeight: "800", margin: "0 0 0.5rem 0", color: "#fff", lineHeight: 1.2 }}>{happeningNow ? happeningNow.subjectName : "Free Period"}</h2>
+              <h2 style={{ fontSize: "2rem", fontWeight: "800", margin: "0 0 0.5rem 0", color: "#fff", lineHeight: 1.2 }}>
+                {isCollegeHours 
+                  ? (happeningNow ? happeningNow.subjectName : "Free Period / Office Hours")
+                  : "Lectures Concluded"}
+              </h2>
               
-              {happeningNow ? (
+              {isCollegeHours && happeningNow ? (
                 <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", fontSize: "0.95rem", color: "rgba(255,255,255,0.9)", marginTop: "1rem" }}>
                   <span style={{ display: "flex", alignItems: "center", gap: "0.5rem", backgroundColor: "rgba(0,0,0,0.2)", padding: "0.4rem 0.8rem", borderRadius: "8px", fontWeight: "600" }}>
                     <Users size={16} /> Class: {happeningNow.classId}
@@ -137,11 +150,17 @@ export default function TeacherDashboardPage() {
                     Room {happeningNow.roomNo}
                   </span>
                 </div>
+              ) : isCollegeHours ? (
+                <p style={{ color: "rgba(255,255,255,0.8)", margin: 0, fontSize: "1rem" }}>
+                  You don't have any classes right now during Period {activePeriod}. Use this time to grade or prepare.
+                </p>
               ) : (
-                <p style={{ color: "rgba(255,255,255,0.8)", margin: 0, fontSize: "1.1rem" }}>You don't have any classes right now. Use this time to grade or prepare.</p>
+                <p style={{ color: "rgba(255,255,255,0.8)", margin: 0, fontSize: "1rem" }}>
+                  College lecture hours run from 8:05 AM to 3:30 PM. Review your daily schedule and upcoming classes below.
+                </p>
               )}
               
-              {happeningNow && (
+              {isCollegeHours && happeningNow && (
                 <div style={{ marginTop: "1.5rem", display: "flex", gap: "1rem" }}>
                   <Link href="/teacher/students" style={{ backgroundColor: "#fff", color: "var(--royal-blue)", padding: "0.6rem 1.2rem", borderRadius: "8px", fontWeight: "700", fontSize: "0.9rem", textDecoration: "none", display: "flex", alignItems: "center", gap: "0.5rem" }}>
                     <CheckCircle size={16} /> Mark Attendance
@@ -151,76 +170,136 @@ export default function TeacherDashboardPage() {
             </div>
             
             {/* Visual Element */}
-            {happeningNow && (
+            {isCollegeHours && happeningNow && (
               <div style={{ position: "relative", width: "120px", height: "120px", flexShrink: 0 }}>
                 <svg viewBox="0 0 120 120" style={{ transform: "rotate(-90deg)" }}>
                   <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="8" />
                   <circle cx="60" cy="60" r="50" fill="none" stroke="#22c55e" strokeWidth="8" strokeDasharray="314.15" strokeDashoffset="150" strokeLinecap="round" style={{ transition: "stroke-dashoffset 1s ease" }} />
                 </svg>
                 <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                  <span style={{ fontSize: "1.5rem", fontWeight: "800", color: "#fff" }}>45m</span>
-                  <span style={{ fontSize: "0.7rem", fontWeight: "600", color: "rgba(255,255,255,0.7)" }}>REMAINING</span>
+                  <span style={{ fontSize: "1.5rem", fontWeight: "800", color: "#fff" }}>P{activePeriod}</span>
+                  <span style={{ fontSize: "0.7rem", fontWeight: "600", color: "rgba(255,255,255,0.7)" }}>ACTIVE</span>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Today's Schedule */}
+          {/* Today's Schedule & Day Switcher */}
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-              <h3 style={{ fontSize: "1.2rem", fontWeight: "700", color: "var(--text-main)", margin: 0 }}>Today's Timeline</h3>
-              <Link href="/teacher/schedule" style={{ color: "var(--royal-blue)", fontSize: "0.85rem", fontWeight: "600", textDecoration: "none", display: "flex", alignItems: "center", gap: "0.2rem" }}>
-                Full Schedule <ChevronRight size={16} />
-              </Link>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+              <h3 style={{ fontSize: "1.2rem", fontWeight: "700", color: "var(--text-main)", margin: 0 }}>
+                Daily Schedule Timeline
+              </h3>
+              <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                Viewing Day Order {selectedTimelineDay}
+              </span>
+            </div>
+
+            {/* Day Order Selector Pills */}
+            <div style={{ display: "flex", gap: "0.4rem", marginBottom: "1rem", overflowX: "auto", paddingBottom: "0.25rem" }}>
+              {["I", "II", "III", "IV", "V"].map((doStr) => {
+                const isSelected = selectedTimelineDay === doStr;
+                const isToday = data?.currentDayOrder === doStr;
+                return (
+                  <button
+                    key={doStr}
+                    onClick={() => setSelectedTimelineDay(doStr)}
+                    style={{
+                      padding: "0.4rem 0.85rem",
+                      borderRadius: "8px",
+                      border: isSelected ? "1px solid var(--royal-blue)" : "1px solid var(--border-subtle)",
+                      backgroundColor: isSelected ? "var(--royal-blue)" : "var(--bg-input)",
+                      color: isSelected ? "#fff" : "var(--text-main)",
+                      fontWeight: 700,
+                      fontSize: "0.8rem",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.4rem",
+                      whiteSpace: "nowrap",
+                      transition: "all 0.15s ease"
+                    }}
+                  >
+                    <span>Day {doStr}</span>
+                    {isToday && (
+                      <span style={{ fontSize: "0.6rem", padding: "0.1rem 0.35rem", borderRadius: "4px", backgroundColor: isSelected ? "rgba(255,255,255,0.25)" : "rgba(34,197,94,0.15)", color: isSelected ? "#fff" : "#22c55e", fontWeight: 800 }}>
+                        TODAY
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
             
-            {(!data?.timetable || data.timetable.length === 0) ? (
-              <div style={{ padding: "2rem", backgroundColor: "var(--bg-card)", borderRadius: "12px", border: "1px dashed var(--border-subtle)", textAlign: "center", color: "var(--text-muted)" }}>
-                {data?.currentDayOrder === "Leave" ? "Enjoy your leave! No classes scheduled for today." : `No classes scheduled for Day Order ${data?.currentDayOrder}. Enjoy your free day!`}
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                {data.timetable.map((p: any, i: number) => {
-                  const isActive = p.period === activePeriod;
-                  const isPast = p.period < activePeriod;
-                  
-                  return (
-                    <div key={i} style={{ 
-                      display: "flex", 
-                      alignItems: "center", 
-                      backgroundColor: isActive ? "rgba(29, 78, 216, 0.05)" : "var(--bg-card)", 
-                      border: isActive ? "1px solid var(--royal-blue)" : "1px solid var(--border-subtle)",
-                      borderRadius: "12px", 
-                      padding: "1rem", 
-                      position: "relative",
-                      overflow: "hidden",
-                      opacity: isPast ? 0.6 : 1
-                    }}>
-                      {isActive && <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "4px", backgroundColor: "var(--royal-blue)" }}></div>}
-                      
-                      <div style={{ width: "80px", flexShrink: 0, borderRight: "1px solid var(--border-subtle)", paddingRight: "1rem", marginRight: "1rem" }}>
-                        <div style={{ fontSize: "0.95rem", fontWeight: "700", color: isActive ? "var(--royal-blue)" : "var(--text-main)" }}>P{p.period}</div>
-                        <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{p.timeRange}</div>
+            {/* 8-Period Timeline */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              {[
+                { period: 1, defaultTime: "08:05 - 08:55" },
+                { period: 2, defaultTime: "08:55 - 09:45" },
+                { period: 3, defaultTime: "10:00 - 10:50" },
+                { period: 4, defaultTime: "10:50 - 11:40" },
+                { period: 5, defaultTime: "12:20 - 01:05" },
+                { period: 6, defaultTime: "01:05 - 01:50" },
+                { period: 7, defaultTime: "02:00 - 02:45" },
+                { period: 8, defaultTime: "02:45 - 03:30" },
+              ].map(({ period, defaultTime }) => {
+                const currentDayList = data?.fullTimetable?.[selectedTimelineDay] || [];
+                const p = currentDayList.find((e: any) => e.period === period);
+                const hasClass = Boolean(p && p.subjectName);
+                const isNow = selectedTimelineDay === data?.currentDayOrder && period === activePeriod && isCollegeHours;
+                const isPast = selectedTimelineDay === data?.currentDayOrder && period < activePeriod && isCollegeHours;
+                
+                return (
+                  <div key={period} style={{ 
+                    display: "flex", 
+                    alignItems: "center", 
+                    backgroundColor: isNow ? "rgba(29, 78, 216, 0.08)" : hasClass ? "var(--bg-card)" : "var(--bg-input)", 
+                    border: isNow ? "2px solid var(--royal-blue)" : "1px solid var(--border-subtle)",
+                    borderRadius: "12px", 
+                    padding: "0.9rem 1rem", 
+                    position: "relative",
+                    overflow: "hidden",
+                    opacity: isPast ? 0.65 : 1,
+                    transition: "all 0.15s ease"
+                  }}>
+                    {isNow && <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "4px", backgroundColor: "var(--royal-blue)" }}></div>}
+                    
+                    <div style={{ width: "85px", flexShrink: 0, borderRight: "1px solid var(--border-subtle)", paddingRight: "0.75rem", marginRight: "0.75rem" }}>
+                      <div style={{ fontSize: "0.95rem", fontWeight: "800", color: isNow ? "var(--royal-blue)" : hasClass ? "var(--text-main)" : "var(--text-muted)" }}>
+                        P{period}
                       </div>
-                      
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: "1rem", fontWeight: "700", color: "var(--text-main)" }}>{p.subjectName}</div>
-                        <div style={{ display: "flex", gap: "1rem", marginTop: "0.25rem", fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                          <span><strong style={{ color: "var(--text-main)" }}>Class:</strong> {p.classId}</span>
-                          <span><strong style={{ color: "var(--text-main)" }}>Room:</strong> {p.roomNo}</span>
-                        </div>
+                      <div style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
+                        {p?.timeRange || defaultTime}
                       </div>
-                      
-                      {isActive && (
-                        <div style={{ backgroundColor: "rgba(56, 189, 248, 0.1)", color: "var(--sky-blue)", padding: "0.3rem 0.6rem", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "700" }}>
-                          NOW
+                    </div>
+                    
+                    <div style={{ flex: 1 }}>
+                      {hasClass ? (
+                        <>
+                          <div style={{ fontSize: "0.95rem", fontWeight: "700", color: "#0284c7" }}>
+                            {p.subjectName}
+                          </div>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem", marginTop: "0.25rem", fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                            <span><strong style={{ color: "var(--text-main)" }}>Class:</strong> {p.classId}</span>
+                            <span><strong style={{ color: "var(--text-main)" }}>Room:</strong> {p.roomNo || "Assigned Lab"}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontStyle: "italic" }}>
+                          Free Period / Preparation & Mentoring
                         </div>
                       )}
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                    
+                    {isNow && (
+                      <div style={{ backgroundColor: "rgba(56, 189, 248, 0.15)", color: "var(--sky-blue)", padding: "0.3rem 0.6rem", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "800" }}>
+                        NOW
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -312,6 +391,17 @@ export default function TeacherDashboardPage() {
           
         </div>
       </div>
+
+      {/* Overall Timetable Section at Bottom */}
+      <OverallTimetable
+        fullTimetable={data?.fullTimetable}
+        currentDayOrder={data?.currentDayOrder}
+        title="Overall Teaching Timetable"
+        subtitle={`Faculty Schedule: ${data?.teacher?.name || "Faculty"} (${data?.teacher?.vmNo || "N/A"}) • ${data?.teacher?.department || "CSE"}`}
+        mode="teacher"
+        facultyName={data?.teacher?.name}
+      />
+
       <style dangerouslySetInnerHTML={{__html: `
         .hover-lift:hover {
           transform: translateY(-2px);

@@ -46,7 +46,7 @@ export async function GET(request: Request) {
     try {
       if (vmNo) {
         fullTimetable = await prisma.timetableEntry.findMany({
-          where: { vmsNo: vmNo.trim() },
+          where: { vmsNo: { contains: vmNo.trim() } },
           orderBy: [{ dayOrder: "asc" }, { period: "asc" }]
         });
       }

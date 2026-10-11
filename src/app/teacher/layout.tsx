@@ -36,10 +36,6 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
               <Home size={18} />
               <span>Dashboard</span>
             </Link>
-            <Link href="/teacher/schedule" className={`student-nav-item ${pathname === "/teacher/schedule" ? "active" : ""}`} title="My Schedule">
-              <Calendar size={18} />
-              <span>My Schedule</span>
-            </Link>
             <Link href="/teacher/courses" className={`student-nav-item ${pathname === "/teacher/courses" ? "active" : ""}`} title="Courses">
               <BookOpen size={18} />
               <span>Courses</span>

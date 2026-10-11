@@ -58,16 +58,28 @@ export async function GET(request: Request) {
 
     // 4. Fetch the timetable for the student's class and current day order
     let timetable: any[] = [];
+    let fullTimetable: Record<string, any[]> = { "I": [], "II": [], "III": [], "IV": [], "V": [] };
     try {
-      timetable = await prisma.timetableEntry.findMany({
+      const allEntries = await prisma.timetableEntry.findMany({
         where: {
-          classId,
-          dayOrder: currentDayOrder
+          classId
         },
-        orderBy: {
-          period: 'asc'
+        orderBy: [
+          { dayOrder: 'asc' },
+          { period: 'asc' }
+        ]
+      });
+
+      allEntries.forEach((entry: any) => {
+        if (fullTimetable[entry.dayOrder]) {
+          fullTimetable[entry.dayOrder].push(entry);
+        }
+        if (entry.dayOrder === currentDayOrder) {
+          timetable.push(entry);
         }
       });
+      // Sort today's timetable by period
+      timetable.sort((a, b) => a.period - b.period);
     } catch (e) {
       console.error("Could not fetch timetable entries via prisma client", e);
     }
@@ -102,6 +114,7 @@ export async function GET(request: Request) {
         currentDayOrder,
         tomorrowDayOrder,
         timetable,
+        fullTimetable,
         notices
       }
     });

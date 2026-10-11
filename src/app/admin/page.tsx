@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Users, Building2, BookOpen, Megaphone, Calendar, Sun, Moon, Globe, GraduationCap, Briefcase, UserCircle, Shield, Save, Edit, ArrowRight } from "lucide-react";
+import { Users, Building2, BookOpen, Megaphone, Calendar, Sun, Moon, Globe, GraduationCap, Briefcase, UserCircle, Shield, Save, Edit, ArrowRight, Trash2, FileSpreadsheet, UserPlus } from "lucide-react";
 import AdminAgentChat from "@/components/AdminAgentChat";
+import AdminTimetableExcelUpload from "@/components/AdminTimetableExcelUpload";
+import AdminUserExcelUpload from "@/components/AdminUserExcelUpload";
 
 interface UserItem {
   id: string;
@@ -28,6 +30,18 @@ interface UserItem {
 interface DeptItem { id: string; code: string; name: string; hodName?: string; }
 interface SubjectItem { id: string; code: string; name: string; credits: number; semester: number; departmentCode: string; classesTaking?: string[]; facultiesHandling?: string[]; }
 interface NoticeItem { id: string; title: string; content: string; category: string; postedBy: string; createdAt: string; }
+interface AuditLogItem {
+  id: string;
+  action: string;
+  details: string;
+  performedBy: string;
+  createdAt: string;
+  user?: {
+    name: string;
+    email: string;
+    role: string;
+  } | null;
+}
 interface TimetableEntry {
   id?: string;
   classId?: string;
@@ -44,7 +58,7 @@ interface TimetableEntry {
 
 export default function AdminPage() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
-  const [activeTab, setActiveTab] = useState<"users" | "depts" | "subjects" | "notices" | "timetable">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "depts" | "subjects" | "notices" | "timetable" | "audit" | "upload-timetable" | "upload-users">("users");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Role Subdivision Filter State
@@ -59,6 +73,7 @@ export default function AdminPage() {
   const [depts, setDepts] = useState<DeptItem[]>([]);
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
   const [notices, setNotices] = useState<NoticeItem[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Timetable State
@@ -95,6 +110,7 @@ export default function AdminPage() {
   const [newUserDept, setNewUserDept] = useState("CSE");
   const [newUserYear, setNewUserYear] = useState("I");
   const [newUserSection, setNewUserSection] = useState("A");
+  const [newUserDesignation, setNewUserDesignation] = useState("Assistant Professor");
 
   // Dept Form
   const [newDeptCode, setNewDeptCode] = useState("");
@@ -124,19 +140,21 @@ export default function AdminPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [uRes, dRes, sRes, nRes, doRes, lRes] = await Promise.all([
+      const [uRes, dRes, sRes, nRes, doRes, lRes, aRes] = await Promise.all([
         fetch("/api/admin/users").then((r) => r.json()),
         fetch("/api/admin/departments").then((r) => r.json()),
         fetch("/api/admin/subjects").then((r) => r.json()),
         fetch("/api/admin/notices").then((r) => r.json()),
         fetch("/api/admin/day-order").then((r) => r.json()),
         fetch("/api/admin/leaves").then((r) => r.json()),
+        fetch("/api/admin/audit-logs").then((r) => r.json()),
       ]);
 
       if (uRes.success) setUsers(uRes.users);
       if (dRes.success) setDepts(dRes.departments);
       if (sRes.success) setSubjects(sRes.subjects);
       if (nRes.success) setNotices(nRes.notices);
+      if (aRes.success && aRes.logs) setAuditLogs(aRes.logs);
       if (doRes.success && doRes.data) setCurrentDayOrderIndex(doRes.data.baseIndex.toString());
       if (lRes.success && lRes.data) {
         setTodayStatus(lRes.data.today);
@@ -151,7 +169,9 @@ export default function AdminPage() {
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { 
+    fetchData(); 
+  }, []);
 
   // Filter users by active subdivision
   const filteredUsers = users.filter((u) => {
@@ -165,11 +185,30 @@ export default function AdminPage() {
     const res = await fetch("/api/admin/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: newUserEmail, name: newUserName, password: newUserPass, role: newUserRole, vmNo: newUserVmNo, department: newUserDept, year: newUserYear, section: newUserSection }),
+      body: JSON.stringify({
+        email: newUserEmail,
+        name: newUserName,
+        password: newUserPass,
+        role: newUserRole,
+        vmNo: newUserVmNo,
+        department: newUserDept,
+        year: newUserYear,
+        section: newUserSection,
+        designation: newUserDesignation,
+      }),
     }).then((r) => r.json());
 
-    if (res.success) { setShowUserModal(false); setNewUserEmail(""); setNewUserName(""); setNewUserPass(""); setNewUserVmNo(""); fetchData(); }
-    else alert("Error: " + res.error);
+    if (res.success) {
+      setShowUserModal(false);
+      setNewUserEmail("");
+      setNewUserName("");
+      setNewUserPass("");
+      setNewUserVmNo("");
+      setNewUserDesignation("Assistant Professor");
+      fetchData();
+    } else {
+      alert("Error: " + res.error);
+    }
   };
 
   const handleDeleteUser = async (id: string) => {
@@ -296,6 +335,9 @@ export default function AdminPage() {
               { id: "subjects", label: "Course Catalog", Icon: BookOpen, count: subjects.length },
               { id: "notices", label: "Announcements", Icon: Megaphone, count: notices.length },
               { id: "timetable", label: "Timetables", Icon: Calendar, count: 0 },
+              { id: "upload-timetable", label: "Upload Timetable Excel", Icon: FileSpreadsheet, count: 0 },
+              { id: "upload-users", label: "Bulk User Onboarding", Icon: UserPlus, count: 0 },
+              { id: "audit", label: "Audit Trail", Icon: Shield, count: auditLogs.length },
             ].map((nav) => (
               <button key={nav.id} onClick={() => { setActiveTab(nav.id as any); setSelectedUser(null); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", padding: "0.7rem 0.9rem", borderRadius: "8px", border: "none", cursor: "pointer", fontWeight: "600", fontSize: "0.85rem", backgroundColor: activeTab === nav.id ? "var(--royal-blue)" : "transparent", color: activeTab === nav.id ? "#ffffff" : "var(--text-muted)", transition: "all 0.2s ease" }}>
                 <span style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}><nav.Icon size={16} /> {nav.label}</span>
@@ -389,6 +431,9 @@ export default function AdminPage() {
                   {activeTab === "subjects" && "Course & Subject Catalog"}
                   {activeTab === "notices" && "System Announcements & Broadcasts"}
                   {activeTab === "timetable" && "Class Timetable Management"}
+                  {activeTab === "upload-timetable" && "Excel Timetable Import"}
+                  {activeTab === "upload-users" && "Bulk User Creation & Profile Setup"}
+                  {activeTab === "audit" && "System Audit Trail & Security Logs"}
                 </h1>
                 <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--text-muted)" }}>Vel Tech Multi Tech Autonomous ERP System</p>
               </div>
@@ -760,7 +805,42 @@ export default function AdminPage() {
                       alert("Error: " + res.error);
                     }
                     setLoadingTimetable(false);
-                  }} className="btn-royal" style={{ minWidth: "150px" }}>Fetch Timetable</button>
+                  }} className="btn-royal" style={{ minWidth: "140px" }}>Fetch Timetable</button>
+
+                  <button onClick={async () => {
+                    const classId = `${selectedYear}-${selectedDept}-${selectedSection}`;
+                    if (!confirm(`Are you sure you want to permanently delete the entire timetable for class ${classId}?`)) return;
+                    setLoadingTimetable(true);
+                    try {
+                      const res = await fetch(`/api/admin/timetable?classId=${classId}`, { method: "DELETE" }).then(r => r.json());
+                      if (res.success) {
+                        setTimetable([]);
+                        alert(`Successfully deleted timetable for ${classId} (${res.count} periods removed)`);
+                      } else {
+                        alert("Error deleting timetable: " + res.error);
+                      }
+                    } catch (e: any) {
+                      alert("Failed to delete: " + e.message);
+                    } finally {
+                      setLoadingTimetable(false);
+                    }
+                  }} style={{
+                    minWidth: "140px",
+                    backgroundColor: "rgba(239, 68, 68, 0.12)",
+                    color: "#ef4444",
+                    border: "1px solid rgba(239, 68, 68, 0.3)",
+                    padding: "0.6rem 1rem",
+                    borderRadius: "8px",
+                    fontWeight: "600",
+                    fontSize: "0.85rem",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.4rem"
+                  }}>
+                    <Trash2 size={16} /> Delete Timetable
+                  </button>
                 </div>
 
                 {loadingTimetable ? (
@@ -830,7 +910,121 @@ export default function AdminPage() {
               </div>
             )}
 
+            {/* AUDIT LOGS TAB */}
+            {activeTab === "audit" && (
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
+                  <div>
+                    <h3 style={{ fontSize: "1.1rem", fontWeight: "700", margin: 0 }}>System Audit Trail</h3>
+                    <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: 0 }}>Real-time logs of administrative actions, user modifications, and security events</p>
+                  </div>
+                  <button onClick={fetchData} className="btn-sky" style={{ padding: "0.5rem 1rem", fontSize: "0.85rem" }}>
+                    🔄 Refresh Logs
+                  </button>
+                </div>
 
+                {auditLogs.length > 0 ? (
+                  <div className="responsive-table-wrapper">
+                    <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.9rem", minWidth: "700px" }}>
+                      <thead>
+                        <tr style={{ borderBottom: "1px solid var(--border-subtle)", color: "var(--text-muted)" }}>
+                          <th style={{ padding: "0.75rem 1rem" }}>Timestamp</th>
+                          <th style={{ padding: "0.75rem 1rem" }}>Action</th>
+                          <th style={{ padding: "0.75rem 1rem" }}>Details & Scope</th>
+                          <th style={{ padding: "0.75rem 1rem" }}>Target User</th>
+                          <th style={{ padding: "0.75rem 1rem" }}>Actor</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {auditLogs.map((log) => {
+                          const isCreate = log.action.includes("CREATE");
+                          const isDelete = log.action.includes("DELETE");
+                          const badgeBg = isCreate ? "rgba(16, 185, 129, 0.15)" : isDelete ? "rgba(239, 68, 68, 0.15)" : "rgba(56, 189, 248, 0.15)";
+                          const badgeColor = isCreate ? "#10b981" : isDelete ? "#ef4444" : "var(--sky-blue)";
+
+                          return (
+                            <tr
+                              key={log.id}
+                              style={{ borderBottom: "1px solid var(--border-subtle)", transition: "background-color 0.2s ease" }}
+                            >
+                              <td style={{ padding: "0.85rem 1rem", fontSize: "0.8rem", color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+                                {new Date(log.createdAt).toLocaleString(undefined, {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  second: "2-digit"
+                                })}
+                              </td>
+                              <td style={{ padding: "0.85rem 1rem" }}>
+                                <span style={{
+                                  display: "inline-block",
+                                  padding: "0.2rem 0.6rem",
+                                  borderRadius: "6px",
+                                  fontSize: "0.75rem",
+                                  fontWeight: "700",
+                                  backgroundColor: badgeBg,
+                                  color: badgeColor,
+                                  letterSpacing: "0.03em"
+                                }}>
+                                  {log.action}
+                                </span>
+                              </td>
+                              <td style={{ padding: "0.85rem 1rem", fontSize: "0.85rem", color: "var(--text-main)" }}>
+                                {log.details}
+                              </td>
+                              <td style={{ padding: "0.85rem 1rem", fontSize: "0.8rem" }}>
+                                {log.user ? (
+                                  <div>
+                                    <strong style={{ color: "var(--sky-blue)", display: "block" }}>{log.user.name}</strong>
+                                    <span style={{ color: "var(--text-muted)" }}>{log.user.email}</span>
+                                  </div>
+                                ) : (
+                                  <span style={{ color: "var(--text-muted)" }}>-</span>
+                                )}
+                              </td>
+                              <td style={{ padding: "0.85rem 1rem", fontSize: "0.85rem", fontWeight: "600", color: "var(--text-muted)" }}>
+                                {log.performedBy}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div style={{ padding: "3rem", textAlign: "center", color: "var(--text-muted)", backgroundColor: "var(--bg-card)", borderRadius: "12px", border: "1px solid var(--border-subtle)" }}>
+                    No audit records logged yet. System operations will automatically appear here.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* EXCEL TIMETABLE UPLOAD */}
+            {activeTab === "upload-timetable" && (
+              <AdminTimetableExcelUpload
+                onUploadSuccess={() => {
+                  fetch("/api/admin/audit-logs").then((r) => r.json()).then((res) => {
+                    if (res.success) setAuditLogs(res.logs);
+                  });
+                }}
+              />
+            )}
+
+            {/* BULK USER & PROFILE ONBOARDING */}
+            {activeTab === "upload-users" && (
+              <AdminUserExcelUpload
+                onUploadSuccess={() => {
+                  fetch("/api/admin/users").then((r) => r.json()).then((res) => {
+                    if (res.success) setUsers(res.users);
+                  });
+                  fetch("/api/admin/audit-logs").then((r) => r.json()).then((res) => {
+                    if (res.success) setAuditLogs(res.logs);
+                  });
+                }}
+              />
+            )}
           </>
         )}
       </main>
@@ -1141,10 +1335,13 @@ export default function AdminPage() {
               {newUserRole === "STUDENT" && (
                 <div style={{ display: "flex", gap: "0.75rem" }}>
                   <select value={newUserDept} onChange={(e) => setNewUserDept(e.target.value)} className="premium-input" style={{ flex: 1 }}>
-                    <option value="CSE">CSE</option>
-                    <option value="IT">IT</option>
-                    <option value="ECE">ECE</option>
-                    <option value="MECH">MECH</option>
+                    {depts.length > 0 ? (
+                      depts.map((d) => (
+                        <option key={d.code} value={d.code}>{d.code}</option>
+                      ))
+                    ) : (
+                      <option value="CSE">CSE</option>
+                    )}
                   </select>
                   <select value={newUserYear} onChange={(e) => setNewUserYear(e.target.value)} className="premium-input" style={{ flex: 1 }}>
                     <option value="I">Year I</option>
@@ -1157,6 +1354,28 @@ export default function AdminPage() {
                     <option value="B">Section B</option>
                     <option value="C">Section C</option>
                   </select>
+                </div>
+              )}
+
+              {(newUserRole === "FACULTY" || newUserRole === "HOD") && (
+                <div style={{ display: "flex", gap: "0.75rem" }}>
+                  <select value={newUserDept} onChange={(e) => setNewUserDept(e.target.value)} className="premium-input" style={{ flex: 1 }}>
+                    {depts.length > 0 ? (
+                      depts.map((d) => (
+                        <option key={d.code} value={d.code}>{d.code} - {d.name}</option>
+                      ))
+                    ) : (
+                      <option value="CSE">CSE</option>
+                    )}
+                  </select>
+                  <input
+                    type="text"
+                    placeholder={newUserRole === "HOD" ? "Designation (e.g. Head of Department)" : "Designation (e.g. Assistant Professor)"}
+                    value={newUserDesignation}
+                    onChange={(e) => setNewUserDesignation(e.target.value)}
+                    className="premium-input"
+                    style={{ flex: 1 }}
+                  />
                 </div>
               )}
               <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem" }}>
@@ -1196,7 +1415,18 @@ export default function AdminPage() {
                 <input type="number" placeholder="Credits" value={newSubCredits} onChange={(e) => setNewSubCredits(e.target.value)} required className="premium-input" />
                 <input type="number" placeholder="Semester" value={newSubSem} onChange={(e) => setNewSubSem(e.target.value)} required className="premium-input" />
               </div>
-              <input type="text" placeholder="Department Code (e.g. CSE)" value={newSubDept} onChange={(e) => setNewSubDept(e.target.value)} required className="premium-input" />
+              <div>
+                <label style={{ display: "block", fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "0.3rem" }}>Department</label>
+                <select value={newSubDept} onChange={(e) => setNewSubDept(e.target.value)} required className="premium-input" style={{ width: "100%" }}>
+                  {depts.length > 0 ? (
+                    depts.map((d) => (
+                      <option key={d.code} value={d.code}>{d.code} - {d.name}</option>
+                    ))
+                  ) : (
+                    <option value="CSE">CSE</option>
+                  )}
+                </select>
+              </div>
               <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem" }}>
                 <button type="submit" className="btn-royal" style={{ flex: 1 }}>Save Subject</button>
                 <button type="button" onClick={() => setShowSubjectModal(false)} style={{ backgroundColor: "rgba(255,255,255,0.1)", color: "var(--text-main)", padding: "0.75rem 1rem", borderRadius: "8px", border: "none" }}>Cancel</button>

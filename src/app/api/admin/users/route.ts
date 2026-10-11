@@ -97,17 +97,18 @@ export async function POST(req: Request) {
       )
     `;
 
-    // 3. Insert StudentProfile if STUDENT
+    // 3. Role-specific profile creation
+    const dept = (body.department || "CSE").toUpperCase().trim();
     if (validRole === "STUDENT") {
-      const dept = body.department || "CSE";
       const year = body.year || "I";
       const sec = body.section || "A";
+      const roll = cleanVmNo || newId.substring(0, 8);
       
       await prisma.$executeRaw`
         INSERT INTO "StudentProfile" ("userEmail", "rollNumber", "department", "semester", "batch", "year", "section", "createdAt")
         VALUES (
           ${cleanEmail},
-          ${cleanVmNo || newId},
+          ${roll},
           ${dept},
           1,
           '2023-2027',
@@ -116,24 +117,64 @@ export async function POST(req: Request) {
           NOW()
         )
       `;
-    }
-
-    // 4. Log audit event
-    try {
-      const logId = crypto.randomUUID();
+    } else if (validRole === "FACULTY" && cleanVmNo) {
+      const designation = body.designation || "Assistant Professor";
       await prisma.$executeRaw`
-        INSERT INTO "AuditLog" (id, action, details, "performedBy", "userId", "createdAt")
+        INSERT INTO "FacultyProfile" ("vmNo", "department", "designation", "createdAt")
         VALUES (
-          ${logId},
-          'CREATE_USER',
-          ${`Created new ${validRole} user: ${cleanEmail}`},
-          'Admin',
-          ${newId},
+          ${cleanVmNo},
+          ${dept},
+          ${designation},
           NOW()
         )
       `;
+    } else if (validRole === "HOD" && cleanVmNo) {
+      const designation = body.designation || "Head of Department";
+      await prisma.$executeRaw`
+        INSERT INTO "HodProfile" ("vmNo", "department", "designation", "createdAt")
+        VALUES (
+          ${cleanVmNo},
+          ${dept},
+          ${designation},
+          NOW()
+        )
+      `;
+    }
+
+    // 4. Sync UserMode for login compatibility
+    if (cleanVmNo) {
+      try {
+        await prisma.userMode.upsert({
+          where: { vmno: cleanVmNo },
+          update: {
+            emailid: cleanEmail,
+            password: storedPassword,
+            usermode: validRole,
+          },
+          create: {
+            vmno: cleanVmNo,
+            emailid: cleanEmail,
+            password: storedPassword,
+            usermode: validRole,
+          },
+        });
+      } catch (err) {
+        console.warn("Could not sync UserMode:", err);
+      }
+    }
+
+    // 5. Log audit event
+    try {
+      await prisma.auditLog.create({
+        data: {
+          action: "CREATE_USER",
+          details: `Created new ${validRole} account for '${cleanEmail}' (${cleanName})`,
+          performedBy: "Admin",
+          userId: newId,
+        },
+      });
     } catch (e) {
-      // Non-critical audit log fallback
+      console.warn("Could not create audit log:", e);
     }
 
     const newUser = { id: newId, email: cleanEmail, name: cleanName, role: validRole, status: "ACTIVE" };
@@ -155,12 +196,34 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ success: false, error: "User ID required" }, { status: 400 });
     }
 
-    await prisma.$executeRaw`
-      DELETE FROM "User" WHERE id = ${userId}
-    `;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, name: true, vmNo: true, role: true },
+    });
+
+    if (user?.vmNo) {
+      await prisma.userMode.deleteMany({ where: { vmno: user.vmNo } });
+    }
+
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+
+    try {
+      await prisma.auditLog.create({
+        data: {
+          action: "DELETE_USER",
+          details: `Deleted ${user?.role || "user"} account '${user?.email || userId}' (${user?.name || ""})`,
+          performedBy: "Admin",
+        },
+      });
+    } catch (e) {
+      // non-blocking
+    }
 
     return NextResponse.json({ success: true, deletedId: userId });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+

@@ -1188,13 +1188,13 @@ export default function AdminPage() {
                                         else newTt.push({ dayOrder: day, period, subjectName: e.target.value, subjectCode: "", facultyName: "", roomNo: "", timeRange: `Period ${period}` });
                                         setTimetable(newTt);
                                       }} style={{ width: "100%", padding: "0.25rem", fontSize: "0.8rem", borderRadius: "4px", border: "1px solid var(--border-subtle)", backgroundColor: "var(--bg-input)", color: "var(--text-main)" }} />
-                                      <input type="text" placeholder="Faculty" value={primaryEntry?.facultyName || ""} onChange={(e) => {
+                                      <input type="text" placeholder="Faculty (separate up to 3 with commas for labs)" title="Up to 3 staff can be assigned, separated by commas" value={primaryEntry?.facultyName || ""} onChange={(e) => {
                                         const newTt = [...timetable];
                                         const entryIdx = newTt.findIndex(t => t.dayOrder === day && t.period === period);
                                         if (entryIdx !== -1) newTt[entryIdx].facultyName = e.target.value;
                                         setTimetable(newTt);
                                       }} style={{ width: "100%", padding: "0.25rem", fontSize: "0.8rem", borderRadius: "4px", border: "1px solid var(--border-subtle)", backgroundColor: "var(--bg-input)", color: "var(--text-main)" }} />
-                                      <input type="text" placeholder="Faculty VM No" value={primaryEntry?.vmsNo || ""} onChange={(e) => {
+                                      <input type="text" placeholder="Faculty VM No (e.g. 1947, 2017, 2002)" value={primaryEntry?.vmsNo || ""} onChange={(e) => {
                                         const newTt = [...timetable];
                                         const entryIdx = newTt.findIndex(t => t.dayOrder === day && t.period === period);
                                         if (entryIdx !== -1) newTt[entryIdx].vmsNo = e.target.value;
@@ -1222,9 +1222,25 @@ export default function AdminPage() {
                                           <strong style={{ color: "var(--sky-blue)", lineHeight: "1.2", fontSize: "0.85rem" }}>
                                             {entry.subjectName || "-"}
                                           </strong>
-                                          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                                            {timetableMode === "faculty" ? `Class: ${entry.classId || "-"}` : `Faculty: ${entry.facultyName || "-"}`}
-                                          </span>
+                                          {entry.facultyName && entry.facultyName.includes(",") ? (
+                                            <div style={{ marginTop: "2px" }}>
+                                              <span style={{ fontSize: "0.65rem", fontWeight: 700, color: "var(--sky-blue)", backgroundColor: "rgba(56, 189, 248, 0.12)", padding: "1px 4px", borderRadius: "3px" }}>
+                                                Lab Staff ({entry.facultyName.split(",").length}):
+                                              </span>
+                                              <div style={{ fontSize: "0.72rem", color: "var(--text-main)", fontWeight: 600, marginTop: "1px" }}>
+                                                {entry.facultyName.split(",").map(f => f.trim()).join(" • ")}
+                                              </div>
+                                              {timetableMode === "faculty" && (
+                                                <div style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
+                                                  Class: {entry.classId || "-"}
+                                                </div>
+                                              )}
+                                            </div>
+                                          ) : (
+                                            <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                                              {timetableMode === "faculty" ? `Class: ${entry.classId || "-"}` : `Faculty: ${entry.facultyName || "-"}`}
+                                            </span>
+                                          )}
                                           <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", backgroundColor: "rgba(255,255,255,0.05)", padding: "0.1rem 0.3rem", borderRadius: "4px", alignSelf: "flex-start" }}>
                                             {entry.roomNo || "LH-101"}
                                           </span>

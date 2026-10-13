@@ -49,18 +49,73 @@ export async function GET(request: Request) {
         orderBy: { classId: 'asc' },
       });
 
-      const distinctFaculty = await prisma.timetableEntry.findMany({
+      // 1. Fetch all registered faculty and HOD from user database
+      const registeredTeachers = await prisma.user.findMany({
+        where: { role: { in: ['FACULTY', 'HOD'] } },
+        select: { name: true, vmNo: true },
+        orderBy: { name: 'asc' },
+      });
+
+      // 2. Fetch distinct faculty strings from timetable entries
+      const ttEntries = await prisma.timetableEntry.findMany({
         select: { facultyName: true, vmsNo: true },
         distinct: ['facultyName'],
-        orderBy: { facultyName: 'asc' },
       });
+
+      // Canonical dictionary of lowercase names -> { name, vmsNo }
+      const facultyMap = new Map<string, { name: string; vmsNo: string | null }>();
+
+      // Register official users first
+      for (const t of registeredTeachers) {
+        if (!t.name) continue;
+        const key = t.name.trim().toLowerCase();
+        facultyMap.set(key, { name: t.name.trim(), vmsNo: t.vmNo || null });
+      }
+
+      // Deconstruct any multi-staff entries (like lab sessions) and add external trainers
+      for (const entry of ttEntries) {
+        if (!entry.facultyName) continue;
+        const subNames = entry.facultyName.split(/[,/]+/).map((s) => s.trim()).filter(Boolean);
+        const subVms = (entry.vmsNo || '').split(/[,/]+/).map((s) => s.trim()).filter(Boolean);
+
+        subNames.forEach((n, idx) => {
+          const key = n.toLowerCase();
+          // Check if already in map by exact name
+          if (!facultyMap.has(key)) {
+            // Check if matches any existing user by partial comparison
+            const existingKey = Array.from(facultyMap.keys()).find(k => {
+              const cleanA = k.replace(/^(dr\.?|mr\.?|ms\.?|mrs\.?)\s+/i, '').trim();
+              const cleanB = key.replace(/^(dr\.?|mr\.?|ms\.?|mrs\.?)\s+/i, '').trim();
+              return cleanA === cleanB;
+            });
+
+            if (existingKey) {
+              const item = facultyMap.get(existingKey)!;
+              if (!item.vmsNo && subVms[idx]) {
+                item.vmsNo = subVms[idx];
+              }
+            } else {
+              facultyMap.set(key, {
+                name: n,
+                vmsNo: subVms[idx] || null,
+              });
+            }
+          } else if (!facultyMap.get(key)!.vmsNo && subVms[idx]) {
+            facultyMap.get(key)!.vmsNo = subVms[idx];
+          }
+        });
+      }
+
+      const sortedFaculty = Array.from(facultyMap.values()).sort((a, b) =>
+        a.name.localeCompare(b.name)
+      );
 
       if (!classId && !facultyName) {
         return NextResponse.json({
           success: true,
           options: {
             classes: distinctClasses.map((c) => c.classId),
-            faculty: distinctFaculty.map((f) => ({ name: f.facultyName, vmsNo: f.vmsNo })),
+            faculty: sortedFaculty,
           },
         });
       }

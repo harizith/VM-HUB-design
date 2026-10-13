@@ -161,12 +161,12 @@ export function resolveSubjectDetails(slotName: string, classId: string, roomNo:
 
   // GENERAL
   if (norm.includes("SPORTS")) {
-    return { subjectCode: "SPT101", subjectName: "Sports & Physical Training", facultyName: "Mr. Sathish Kumar", roomNo: "Sports Ground" };
+    return { subjectCode: "SPT101", subjectName: "Sports & Physical Training", facultyName: "Mr Sathish Kumar P", roomNo: "Sports Ground" };
   }
   if (norm.includes("LIBRARY")) {
-    let fac = "Ms.Yerakkamma";
-    if (sec === "B") fac = "Ms. S.Alfiya";
-    if (sec === "C") fac = "Ms. R.Kokila Priya";
+    let fac = "Ms.Yerakamma";
+    if (sec === "B") fac = "Ms Alfiya S";
+    if (sec === "C") fac = "Ms Kokilapriya R";
     return { subjectCode: "LIB101", subjectName: "Library / Self-Study", facultyName: fac, roomNo: actualRoom };
   }
   if (norm.includes("PPT")) {
@@ -176,28 +176,28 @@ export function resolveSubjectDetails(slotName: string, classId: string, roomNo:
     return { subjectCode: "SEM101", subjectName: "Technical Seminar", facultyName: "Seminar Incharge", roomNo: "Seminar Hall" };
   }
   if (norm.includes("PROJECT PHASE")) {
-    let fac = "Dr. M. Victor Jose";
-    if (sec === "B") fac = "Dr. E. Mercy Beullah";
-    if (sec === "C") fac = "Dr. R. Saravanan";
+    let fac = "Dr Victor Jose M, Dr Stalin David D, Mr Sathish Kumar P";
+    if (sec === "B") fac = "Dr Mercy Beulah E, Dr Buvana M, Mr Sathish Kumar P";
+    if (sec === "C") fac = "Dr Saravanan R, Dr. B. Swaminathan, Mr Sathish Kumar P";
     return { subjectCode: "231CS77A", subjectName: "Project Work (Phase - I)", facultyName: fac, roomNo: actualRoom };
   }
 
   // YEAR II
   if (yearStr === "II") {
     if (norm.startsWith("DS/DPCO LAB") || norm.startsWith("DS / DPCO LAB")) {
-      const fac = sec === "A" ? "Ms A Vinothini" : sec === "B" ? "Ms D Parkavi" : "Dr. E. Mercy Beulah";
+      const fac = sec === "A" ? "Ms Vinothini A, Ms Dhanalakshmi K, Mr Pandi C" : sec === "B" ? "Ms Parkavi D, Ms Dhanalakshmi K, Mr Pandi C" : "Dr Mercy Beulah E, Ms Dhanalakshmi K, Mr Venkatesan P";
       return { subjectCode: "231CS32A", subjectName: "Data Structures & DPCO Laboratory", facultyName: fac, roomNo: actualRoom };
     }
     if (norm.startsWith("OS/OOPS LAB") || norm.startsWith("OOPS/OS LAB")) {
-      const fac = sec === "A" ? "Ms. Sandhiya Sree" : sec === "B" ? "Mr V Nehru" : "Ms. R. Harini";
+      const fac = sec === "A" ? "Ms.C S Sandhya Sri, Mr Vinod S, Dr.Vijay.R" : sec === "B" ? "Dr. NehruV, Mr Vinod S, Ms Vinothini V" : "Ms Harini R, Mr Vinod S, Ms.C S Sandhya Sri";
       return { subjectCode: "231CS32B", subjectName: "OS & OOPS Laboratory", facultyName: fac, roomNo: actualRoom };
     }
     if (norm.startsWith("SE LAB")) {
-      const fac = sec === "A" ? "Ms. Yerakkamma" : sec === "B" ? "Ms V Divya" : "Ms. D. Parkavi";
+      const fac = sec === "A" ? "Ms.Yerakamma, Ms Lavanya V, Dr Stalin David D" : sec === "B" ? "Ms Divya V, Ms Lavanya V, Ms.Yerakamma" : "Ms Parkavi D, Ms Vaitheeshwari S, Dr Stalin David D";
       return { subjectCode: "231CS325", subjectName: "Software Engineering Laboratory", facultyName: fac, roomNo: actualRoom };
     }
     if (norm.startsWith("PQT LAB")) {
-      const fac = sec === "A" ? "Dr. Mattuvarkuzhali" : sec === "B" ? "Ms. Anurathi" : "Dr. T. Mary Shalini";
+      const fac = sec === "A" ? "Dr. Mattuvarkuzhali, Ms.R.Gayathri, Ms Vaitheeshwari S" : sec === "B" ? "Ms. Anurathi, Ms.R.Gayathri, Mr Venkatesan P" : "Dr. T. Mary Shalini, Ms.R.Gayathri, Ms. Anurathi";
       return { subjectCode: "231MA302", subjectName: "Probability & Queuing Theory Lab", facultyName: fac, roomNo: actualRoom };
     }
     if (norm === "PQT") {
@@ -205,23 +205,23 @@ export function resolveSubjectDetails(slotName: string, classId: string, roomNo:
       return { subjectCode: "231MA302", subjectName: "Probability and Queuing Theory", facultyName: fac, roomNo: actualRoom };
     }
     if (norm === "OOPS") {
-      const fac = sec === "A" ? "Ms. Sandhiya Sree" : sec === "B" ? "Mr V Nehru" : "Ms. R. Harini";
+      const fac = sec === "A" ? "Ms.C S Sandhya Sri" : sec === "B" ? "Dr. NehruV" : "Ms Harini R";
       return { subjectCode: "231CS323", subjectName: "Object Oriented Programming", facultyName: fac, roomNo: actualRoom };
     }
     if (norm === "DS") {
-      const fac = sec === "A" ? "Ms A Vinothini" : sec === "B" ? "Ms D Parkavi" : "Dr. E. Mercy Beulah";
+      const fac = sec === "A" ? "Ms Vinothini A" : sec === "B" ? "Ms Parkavi D" : "Dr Mercy Beulah E";
       return { subjectCode: "231CS321", subjectName: "Data Structures", facultyName: fac, roomNo: actualRoom };
     }
     if (norm === "DPCO" || norm === "DP&CO") {
-      const fac = sec === "A" ? "Ms. R. Kokila Priya" : sec === "B" ? "Mr. V. Senthilkumar" : "Mr. P. Sathish Kumar";
+      const fac = sec === "A" ? "Ms Kokilapriya R" : sec === "B" ? "Mr. V. Senthilkumar" : "Mr Sathish Kumar P";
       return { subjectCode: "231CS322", subjectName: "Digital Principles and Computer Organization", facultyName: fac, roomNo: actualRoom };
     }
     if (norm === "SE") {
-      const fac = sec === "A" ? "Ms. Yerakkamma" : sec === "B" ? "Ms V Divya" : "Ms. D. Parkavi";
+      const fac = sec === "A" ? "Ms.Yerakamma" : sec === "B" ? "Ms Divya V" : "Ms Parkavi D";
       return { subjectCode: "231CS325", subjectName: "Software Engineering", facultyName: fac, roomNo: actualRoom };
     }
     if (norm === "OS") {
-      const fac = sec === "A" ? "Mr C Pandi" : sec === "B" ? "Ms S. Alfiya" : "Ms. J. Bebitha";
+      const fac = sec === "A" ? "Mr Pandi C" : sec === "B" ? "Ms Alfiya S" : "Ms Bebitha J";
       return { subjectCode: "231CS324", subjectName: "Operating Systems", facultyName: fac, roomNo: actualRoom };
     }
   }
@@ -229,74 +229,74 @@ export function resolveSubjectDetails(slotName: string, classId: string, roomNo:
   // YEAR III
   if (yearStr === "III") {
     if (norm.includes("ES&IOT / CD LAB") || norm.includes("CD / ES&IOT LAB") || norm.includes("CD /ES&IOT LAB")) {
-      const fac = sec === "A" ? "Mr. V. Nehru" : sec === "B" ? "Ms M Aswin Rani" : "Dr. R. Saravanan";
+      const fac = sec === "A" ? "Dr. NehruV, Ms Vijayashanthi V, Dr.Insozhan.N" : sec === "B" ? "Ms Aswin Rani M, Dr. NehruV, Ms Chandra Rajesh" : "Dr Saravanan R, Dr. NehruV, Ms Divya V";
       return { subjectCode: "231CS52A", subjectName: "Embedded Systems, IoT & CD Laboratory", facultyName: fac, roomNo: actualRoom };
     }
     if (norm.includes("AI&ML LAB") || norm.includes("AIML LAB")) {
-      const fac = sec === "A" ? "Mr R Harini" : sec === "B" ? "Dr K Muthukannan" : "Ms R Kokila Priya";
+      const fac = sec === "A" ? "Ms Harini R, Dr Muthukannan K, Ms Kokilapriya R" : sec === "B" ? "Dr Muthukannan K, Ms Kokilapriya R, Ms Harini R" : "Ms Kokilapriya R, Dr Muthukannan K, Ms Harini R";
       return { subjectCode: "231IT521", subjectName: "AI & ML Laboratory", facultyName: fac, roomNo: actualRoom };
     }
     if (norm.includes("PE-I LAB") || norm.includes("PE-1 LAB")) {
-      return { subjectCode: "231CSV44", subjectName: "Ethical Hacking Laboratory (PE-I)", facultyName: "Mr P Karthick", roomNo: actualRoom };
+      return { subjectCode: "231CSV44", subjectName: "Ethical Hacking Laboratory (PE-I)", facultyName: "Mr Karthick P, Dr.Vijay.R, Mr Pandi C", roomNo: actualRoom };
     }
     if (norm.includes("PE-II LAB")) {
-      return { subjectCode: "231ITV64", subjectName: "Software Testing Laboratory (PE-II)", facultyName: "Mr N Insozhan", roomNo: actualRoom };
+      return { subjectCode: "231ITV64", subjectName: "Software Testing Laboratory (PE-II)", facultyName: "Dr.Insozhan.N, Mr Venkatesan P, Ms Vinothini V", roomNo: actualRoom };
     }
     if (norm.includes("OE-I LAB") || norm.includes("OE-1 LAB")) {
-      return { subjectCode: "231ECV22", subjectName: "Open Elective - I Laboratory", facultyName: "Faculty Coordinator", roomNo: actualRoom };
+      return { subjectCode: "231ECV22", subjectName: "Open Elective - I Laboratory", facultyName: "Faculty Coordinator, Ms Vinothini V, Ms Lavanya V", roomNo: actualRoom };
     }
     if (norm === "AI&ML" || norm === "AIML") {
-      const fac = sec === "A" ? "Mr R Harini" : sec === "B" ? "Dr K Muthukannan" : "Ms R Kokila Priya";
+      const fac = sec === "A" ? "Ms Harini R" : sec === "B" ? "Dr Muthukannan K" : "Ms Kokilapriya R";
       return { subjectCode: "231IT521", subjectName: "Artificial Intelligence and Machine Learning", facultyName: fac, roomNo: actualRoom };
     }
     if (norm === "CD") {
-      const fac = sec === "A" ? "Ms V Vijayashanthi" : sec === "B" ? "Ms R Chandra" : "Ms V Divya";
+      const fac = sec === "A" ? "Ms Vijayashanthi V" : sec === "B" ? "Ms Chandra Rajesh" : "Ms Divya V";
       return { subjectCode: "231CS521", subjectName: "Compiler Design", facultyName: fac, roomNo: actualRoom };
     }
     if (norm === "ES&IOT" || norm === "ESIOT") {
-      const fac = sec === "A" ? "Mr. V. Nehru" : sec === "B" ? "Ms M Aswin Rani" : "Dr. R. Saravanan";
+      const fac = sec === "A" ? "Dr. NehruV" : sec === "B" ? "Ms Aswin Rani M" : "Dr Saravanan R";
       return { subjectCode: "231CS522", subjectName: "Embedded Systems and IoT", facultyName: fac, roomNo: actualRoom };
     }
     if (norm === "PE-I" || norm === "PE-1") {
-      return { subjectCode: "231CSV44", subjectName: "Professional Elective - I (Ethical Hacking)", facultyName: "Mr P Karthick", roomNo: actualRoom };
+      return { subjectCode: "231CSV44", subjectName: "Professional Elective - I (Ethical Hacking)", facultyName: "Mr Karthick P", roomNo: actualRoom };
     }
     if (norm === "PE-II" || norm === "PE-2") {
-      return { subjectCode: "231ITV64", subjectName: "Professional Elective - II (Software Testing)", facultyName: "Mr N Insozhan", roomNo: actualRoom };
+      return { subjectCode: "231ITV64", subjectName: "Professional Elective - II (Software Testing)", facultyName: "Dr.Insozhan.N", roomNo: actualRoom };
     }
     if (norm === "OE-I" || norm === "OE-1") {
       return { subjectCode: "231ECV22", subjectName: "Open Elective - I", facultyName: "Faculty Coordinator", roomNo: actualRoom };
     }
     if (norm === "SOE") {
-      return { subjectCode: "231MC56A", subjectName: "Standards of Engineering (Mandatory)", facultyName: "Dr. K. Muthukannan", roomNo: actualRoom };
+      return { subjectCode: "231MC56A", subjectName: "Standards of Engineering (Mandatory)", facultyName: "Dr Muthukannan K", roomNo: actualRoom };
     }
   }
 
   // YEAR IV
   if (yearStr === "IV") {
     if (norm.includes("PE-V LAB") || norm.includes("PE-5 LAB")) {
-      const fac = sec === "A" ? "Dr. M. Victor Jose" : sec === "B" ? "Ms P Selvarathinam" : "Ms M K Geedtha";
+      const fac = sec === "A" ? "Dr Victor Jose M, Ms Selva Rathinam P, Ms Geedtha M K" : sec === "B" ? "Ms Selva Rathinam P, Dr Victor Jose M, Ms Geedtha M K" : "Ms Geedtha M K, Ms Selva Rathinam P, Dr Victor Jose M";
       return { subjectCode: "231CSV46", subjectName: "Network Security Laboratory (PE-V)", facultyName: fac, roomNo: actualRoom };
     }
     if (norm.includes("PE-VI LAB")) {
-      return { subjectCode: "231ITV51", subjectName: "AI in Media Communication Lab (PE-VI)", facultyName: "Dr. M. Swaminathan", roomNo: actualRoom };
+      return { subjectCode: "231ITV51", subjectName: "AI in Media Communication Lab (PE-VI)", facultyName: "Dr. B. Swaminathan, Dr Buvana M, Ms Bebitha J", roomNo: actualRoom };
     }
     if (norm.includes("OE-III LAB")) {
-      return { subjectCode: "231ECV37", subjectName: "Open Elective - III Laboratory", facultyName: "Faculty Coordinator", roomNo: actualRoom };
+      return { subjectCode: "231ECV37", subjectName: "Open Elective - III Laboratory", facultyName: "Faculty Coordinator, Ms Dhanalakshmi K, Ms Vaitheeshwari S", roomNo: actualRoom };
     }
     if (norm === "PEHV") {
-      const fac = sec === "A" ? "Dr M Buvana" : sec === "B" ? "Ms J Bebitha" : "Ms M Aswin Rani";
+      const fac = sec === "A" ? "Dr Buvana M" : sec === "B" ? "Ms Bebitha J" : "Ms Aswin Rani M";
       return { subjectCode: "231HS701", subjectName: "Professional Ethics and Human Values", facultyName: fac, roomNo: actualRoom };
     }
     if (norm === "SPM") {
-      const fac = sec === "A" ? "Dr. M. Victor Jose" : sec === "B" ? "Dr E Mercy Beullah" : "Ms M.K. Geedtha";
+      const fac = sec === "A" ? "Dr Victor Jose M" : sec === "B" ? "Dr Mercy Beulah E" : "Ms Geedtha M K";
       return { subjectCode: "231CB721", subjectName: "Software Project Management", facultyName: fac, roomNo: actualRoom };
     }
     if (norm === "PE-V" || norm === "PE-5") {
-      const fac = sec === "A" ? "Dr. M. Victor Jose" : sec === "B" ? "Ms P Selvarathinam" : "Ms M K Geedtha";
+      const fac = sec === "A" ? "Dr Victor Jose M" : sec === "B" ? "Ms Selva Rathinam P" : "Ms Geedtha M K";
       return { subjectCode: "231CSV46", subjectName: "Professional Elective - V (Network Security)", facultyName: fac, roomNo: actualRoom };
     }
     if (norm === "PE-VI" || norm === "PE-6") {
-      return { subjectCode: "231ITV51", subjectName: "Professional Elective - VI (AI in Media)", facultyName: "Dr. M. Swaminathan", roomNo: actualRoom };
+      return { subjectCode: "231ITV51", subjectName: "Professional Elective - VI (AI in Media)", facultyName: "Dr. B. Swaminathan", roomNo: actualRoom };
     }
     if (norm === "OE-II" || norm === "OE-2") {
       return { subjectCode: "231EEV55", subjectName: "Open Elective - II", facultyName: "Faculty Coordinator", roomNo: actualRoom };

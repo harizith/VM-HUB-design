@@ -88,6 +88,9 @@ export default function OverallTimetable({
     const existing = uniqueSubjects.find(s => s.code === slot.subjectCode && s.name === slot.subjectName);
     if (existing) {
       existing.hours += 1;
+      if (slot.facultyName && slot.facultyName.includes(",") && !existing.faculty.includes(",")) {
+        existing.faculty = slot.facultyName;
+      }
     } else {
       uniqueSubjects.push({
         code: slot.subjectCode,
@@ -330,7 +333,41 @@ export default function OverallTimetable({
                                 color: "var(--text-muted)",
                                 wordBreak: "break-word"
                               }}>
-                                {mode === "student" ? (
+                                {entry?.facultyName && entry.facultyName.includes(",") ? (
+                                  <div style={{ marginTop: "3px" }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "2px" }}>
+                                      <span style={{
+                                        fontSize: "0.62rem",
+                                        fontWeight: 800,
+                                        backgroundColor: "rgba(56, 189, 248, 0.15)",
+                                        color: "var(--sky-blue)",
+                                        padding: "1px 4px",
+                                        borderRadius: "3px",
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.03em"
+                                      }}>
+                                        Lab Staff ({entry.facultyName.split(",").length})
+                                      </span>
+                                    </div>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "1.5px" }}>
+                                      {entry.facultyName.split(",").map((fn, fIdx) => (
+                                        <div key={fIdx} style={{
+                                          fontSize: "0.71rem",
+                                          color: "var(--text-main)",
+                                          fontWeight: 600,
+                                          lineHeight: 1.2
+                                        }}>
+                                          • {fn.trim()}
+                                        </div>
+                                      ))}
+                                    </div>
+                                    {mode !== "student" && (
+                                      <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "2px" }}>
+                                        Class: <strong>{entry?.classId || classId}</strong>
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : mode === "student" ? (
                                   entry?.facultyName || "Faculty"
                                 ) : (
                                   <span>
@@ -454,7 +491,27 @@ export default function OverallTimetable({
                           {entry?.subjectName}
                         </h4>
                         <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                          {mode === "student" ? entry?.facultyName : `Class: ${entry?.classId || classId}`}
+                          {entry?.facultyName && entry.facultyName.includes(",") ? (
+                            <div style={{ marginTop: "4px", backgroundColor: "rgba(56, 189, 248, 0.06)", padding: "5px 8px", borderRadius: "6px", border: "1px solid var(--border-subtle)" }}>
+                              <div style={{ fontSize: "0.68rem", fontWeight: 800, color: "var(--sky-blue)", textTransform: "uppercase", marginBottom: "2px" }}>
+                                Lab Staff In-Charge ({entry.facultyName.split(",").length} Faculty):
+                              </div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                                {entry.facultyName.split(",").map((fn, fIdx) => (
+                                  <div key={fIdx} style={{ fontSize: "0.74rem", color: "var(--text-main)", fontWeight: 600 }}>
+                                    👨‍🏫 {fn.trim()}
+                                  </div>
+                                ))}
+                              </div>
+                              {mode !== "student" && (
+                                <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "3px" }}>
+                                  Class: <strong>{entry?.classId || classId}</strong>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            mode === "student" ? (entry?.facultyName || "Faculty") : `Class: ${entry?.classId || classId}${entry?.facultyName ? ` • ${entry.facultyName}` : ""}`
+                          )}
                         </div>
                       </div>
                     ) : (
@@ -666,6 +723,11 @@ export default function OverallTimetable({
                                   <div style={{ fontWeight: "bold", fontSize: "8pt" }}>{slot.subjectCode}</div>
                                   <div style={{ fontSize: "7pt" }}>{slot.subjectName.slice(0, 18)}</div>
                                   <div style={{ fontSize: "6.5pt", color: "#555" }}>{slot.roomNo || ""}</div>
+                                  {slot.facultyName && slot.facultyName.includes(",") && (
+                                    <div style={{ fontSize: "5.5pt", color: "#222", marginTop: "1px", fontStyle: "italic", lineHeight: 1.1 }}>
+                                      Staff: {slot.facultyName.split(",").map((s: string) => s.trim().replace(/^(Dr\.?|Mr\.?|Ms\.?)\s+/i, '')).join(", ")}
+                                    </div>
+                                  )}
                                 </div>
                               ) : (
                                 <span style={{ color: "#aaa" }}>-</span>
@@ -682,6 +744,11 @@ export default function OverallTimetable({
                                   <div style={{ fontWeight: "bold", fontSize: "8pt" }}>{slot.subjectCode}</div>
                                   <div style={{ fontSize: "7pt" }}>{slot.subjectName.slice(0, 18)}</div>
                                   <div style={{ fontSize: "6.5pt", color: "#555" }}>{slot.roomNo || ""}</div>
+                                  {slot.facultyName && slot.facultyName.includes(",") && (
+                                    <div style={{ fontSize: "5.5pt", color: "#222", marginTop: "1px", fontStyle: "italic", lineHeight: 1.1 }}>
+                                      Staff: {slot.facultyName.split(",").map((s: string) => s.trim().replace(/^(Dr\.?|Mr\.?|Ms\.?)\s+/i, '')).join(", ")}
+                                    </div>
+                                  )}
                                 </div>
                               ) : (
                                 <span style={{ color: "#aaa" }}>-</span>

@@ -39,11 +39,22 @@ export async function GET(request: Request) {
     }
     const normalizedDept = department.replace(/^(B\.E\s+|B\.Tech\s+)/i, "").trim();
     const classId = `${yearStr}-${normalizedDept}-${section}`;
+    const possibleClasses = new Set<string>([classId]);
+    if (yearStr === "II" || semester === 3 || semester === 4) {
+      possibleClasses.add(`III-${normalizedDept}-${section}`);
+      possibleClasses.add(`II-${normalizedDept}-${section}`);
+    } else if (yearStr === "III" || semester === 5 || semester === 6) {
+      possibleClasses.add(`V-${normalizedDept}-${section}`);
+      possibleClasses.add(`III-${normalizedDept}-${section}`);
+    } else if (yearStr === "IV" || semester === 7 || semester === 8) {
+      possibleClasses.add(`VII-${normalizedDept}-${section}`);
+      possibleClasses.add(`IV-${normalizedDept}-${section}`);
+    }
 
     let fullTimetable: any[] = [];
     try {
       fullTimetable = await prisma.timetableEntry.findMany({
-        where: { classId },
+        where: { classId: { in: Array.from(possibleClasses) } },
         orderBy: [
           { dayOrder: 'asc' },
           { period: 'asc' }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar, LayoutGrid, List } from "lucide-react";
+import { Calendar, LayoutGrid, List, Download, Printer, FileText, X } from "lucide-react";
 
 export interface TimetableEntry {
   id?: string;
@@ -16,6 +16,18 @@ export interface TimetableEntry {
   vmsNo?: string | null;
 }
 
+export interface UserDetailsProps {
+  name?: string | null;
+  rollNumber?: string | null;
+  vmNo?: string | null;
+  department?: string | null;
+  designation?: string | null;
+  semester?: number | string | null;
+  section?: string | null;
+  batch?: string | null;
+  classId?: string | null;
+}
+
 interface OverallTimetableProps {
   fullTimetable?: Record<string, TimetableEntry[]> | null;
   currentDayOrder?: string;
@@ -24,17 +36,18 @@ interface OverallTimetableProps {
   mode?: "student" | "teacher" | "hod" | "admin";
   classId?: string;
   facultyName?: string;
+  userDetails?: UserDetailsProps;
 }
 
 const PERIOD_LIST = [
-  { period: 1, label: "Period 1", defaultTime: "08:00 - 08:50" },
-  { period: 2, label: "Period 2", defaultTime: "08:50 - 09:40" },
-  { period: 3, label: "Period 3", defaultTime: "09:55 - 10:45" },
-  { period: 4, label: "Period 4", defaultTime: "10:45 - 11:35" },
-  { period: 5, label: "Period 5", defaultTime: "12:15 - 01:05" },
-  { period: 6, label: "Period 6", defaultTime: "01:05 - 01:55" },
-  { period: 7, label: "Period 7", defaultTime: "02:05 - 02:55" },
-  { period: 8, label: "Period 8", defaultTime: "02:55 - 03:45" },
+  { period: 1, label: "Period 1", defaultTime: "08:05 - 08:55" },
+  { period: 2, label: "Period 2", defaultTime: "08:55 - 09:45" },
+  { period: 3, label: "Period 3", defaultTime: "10:00 - 10:50" },
+  { period: 4, label: "Period 4", defaultTime: "10:50 - 11:40" },
+  { period: 5, label: "Period 5", defaultTime: "12:20 - 01:05" },
+  { period: 6, label: "Period 6", defaultTime: "01:05 - 01:50" },
+  { period: 7, label: "Period 7", defaultTime: "02:00 - 02:45" },
+  { period: 8, label: "Period 8", defaultTime: "02:45 - 03:30" },
 ];
 
 const DAY_ORDERS = ["I", "II", "III", "IV", "V"];
@@ -46,17 +59,92 @@ export default function OverallTimetable({
   subtitle,
   mode = "student",
   classId,
-  facultyName
+  facultyName,
+  userDetails
 }: OverallTimetableProps) {
   const initialDayOrder = DAY_ORDERS.includes(currentDayOrder) ? currentDayOrder : "I";
   const [selectedDayOrder, setSelectedDayOrder] = useState<string>(initialDayOrder);
   const [viewMode, setViewMode] = useState<"matrix" | "tabs">("matrix");
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
 
   const timetableMap: Record<string, TimetableEntry[]> = fullTimetable || {
     "I": [], "II": [], "III": [], "IV": [], "V": []
   };
 
   const selectedEntries = timetableMap[selectedDayOrder] || [];
+
+  // Derived user details for the official template
+  const resolvedName = userDetails?.name || facultyName || (mode === "student" ? "Student" : "Faculty Member");
+  const resolvedClassId = userDetails?.classId || classId || "II-CSE-A";
+  const resolvedId = userDetails?.vmNo || userDetails?.rollNumber || "N/A";
+  const resolvedDept = userDetails?.department || "Computer Science and Engineering";
+  const resolvedDesignation = userDetails?.designation || (mode === "student" ? "Student" : "Assistant Professor");
+
+  // Calculate unique subjects for the official document subject table
+  const allSlots = Object.values(timetableMap).flat();
+  const uniqueSubjects: { code: string; name: string; faculty: string; room: string; hours: number }[] = [];
+  allSlots.forEach(slot => {
+    if (!slot.subjectCode || slot.subjectCode === "-" || slot.subjectCode === "LUNCH") return;
+    const existing = uniqueSubjects.find(s => s.code === slot.subjectCode && s.name === slot.subjectName);
+    if (existing) {
+      existing.hours += 1;
+    } else {
+      uniqueSubjects.push({
+        code: slot.subjectCode,
+        name: slot.subjectName,
+        faculty: slot.facultyName || facultyName || "Faculty",
+        room: slot.roomNo || "Room",
+        hours: 1
+      });
+    }
+  });
+
+  const totalWeeklyHours = allSlots.filter(s => s.subjectCode && s.subjectCode !== "-" && !s.subjectCode.includes("LUNCH")).length;
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleDownloadHtml = () => {
+    const printEl = document.getElementById("official-printable-timetable");
+    if (!printEl) return;
+
+    const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>${resolvedName} - Official Timetable</title>
+  <style>
+    @page { size: landscape; margin: 10mm; }
+    body { font-family: 'Times New Roman', serif; margin: 0; padding: 20px; background: #fff; color: #000; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    th, td { border: 1px solid #000; padding: 6px 4px; text-align: center; }
+    th { background-color: #f2f2f2; font-weight: bold; }
+    .header { text-align: center; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 8px; }
+    .header h1 { margin: 0; font-size: 16pt; font-weight: bold; }
+    .header p { margin: 2px 0; font-size: 10pt; }
+    .badge { display: inline-block; border: 1.5px solid #000; padding: 3px 15px; font-weight: bold; font-size: 12pt; margin-top: 6px; }
+    .meta-box { border: 1px solid #000; padding: 8px 12px; margin-bottom: 12px; display: grid; grid-template-columns: repeat(4, 1fr); font-size: 10pt; gap: 6px; }
+    .lunch-cell { background-color: #f8f8f8; font-weight: bold; font-size: 9px; }
+    .signatures { display: flex; justify-content: space-between; margin-top: 40px; font-weight: bold; font-size: 10pt; padding: 0 20px; }
+    .sig-line { width: 180px; border-top: 1px solid #000; text-align: center; padding-top: 5px; }
+  </style>
+</head>
+<body>
+  ${printEl.innerHTML}
+</body>
+</html>`;
+
+    const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Timetable_${resolvedName.replace(/[^a-zA-Z0-9]/g, "_")}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <section className="student-card premium-card" style={{ marginTop: "2rem", padding: "1.25rem 1.5rem" }}>
@@ -76,50 +164,73 @@ export default function OverallTimetable({
           </div>
         </div>
 
-        {/* View Switcher: Matrix (Default as in screenshot) vs Single Day View */}
-        <div style={{ display: "inline-flex", padding: "3px", backgroundColor: "var(--bg-input)", borderRadius: "8px", border: "1px solid var(--border-subtle)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+          {/* Download Official Timetable Button */}
           <button
-            onClick={() => setViewMode("matrix")}
+            onClick={() => setShowDownloadModal(true)}
+            className="btn-sky"
             style={{
               display: "flex",
               alignItems: "center",
-              gap: "0.4rem",
-              padding: "0.4rem 0.8rem",
-              borderRadius: "6px",
-              border: "none",
-              fontSize: "0.8rem",
-              fontWeight: 600,
+              gap: "0.45rem",
+              padding: "0.45rem 0.9rem",
+              borderRadius: "8px",
+              fontSize: "0.82rem",
+              fontWeight: 700,
               cursor: "pointer",
-              backgroundColor: viewMode === "matrix" ? "var(--bg-card)" : "transparent",
-              color: viewMode === "matrix" ? "var(--royal-blue)" : "var(--text-muted)",
-              boxShadow: viewMode === "matrix" ? "0 2px 4px rgba(0,0,0,0.1)" : "none",
-              transition: "all 0.15s ease"
+              boxShadow: "0 2px 8px rgba(56, 189, 248, 0.25)"
             }}
+            title="Download or Print Official College Timetable Format"
           >
-            <LayoutGrid size={14} />
-            <span>Table View</span>
+            <Download size={15} />
+            <span>Download Timetable</span>
           </button>
-          <button
-            onClick={() => setViewMode("tabs")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.4rem",
-              padding: "0.4rem 0.8rem",
-              borderRadius: "6px",
-              border: "none",
-              fontSize: "0.8rem",
-              fontWeight: 600,
-              cursor: "pointer",
-              backgroundColor: viewMode === "tabs" ? "var(--bg-card)" : "transparent",
-              color: viewMode === "tabs" ? "var(--royal-blue)" : "var(--text-muted)",
-              boxShadow: viewMode === "tabs" ? "0 2px 4px rgba(0,0,0,0.1)" : "none",
-              transition: "all 0.15s ease"
-            }}
-          >
-            <List size={14} />
-            <span>Day View</span>
-          </button>
+
+          {/* View Switcher: Matrix vs Single Day View */}
+          <div style={{ display: "inline-flex", padding: "3px", backgroundColor: "var(--bg-input)", borderRadius: "8px", border: "1px solid var(--border-subtle)" }}>
+            <button
+              onClick={() => setViewMode("matrix")}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.4rem",
+                padding: "0.4rem 0.8rem",
+                borderRadius: "6px",
+                border: "none",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                cursor: "pointer",
+                backgroundColor: viewMode === "matrix" ? "var(--bg-card)" : "transparent",
+                color: viewMode === "matrix" ? "var(--royal-blue)" : "var(--text-muted)",
+                boxShadow: viewMode === "matrix" ? "0 2px 4px rgba(0,0,0,0.1)" : "none",
+                transition: "all 0.15s ease"
+              }}
+            >
+              <LayoutGrid size={14} />
+              <span>Table View</span>
+            </button>
+            <button
+              onClick={() => setViewMode("tabs")}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.4rem",
+                padding: "0.4rem 0.8rem",
+                borderRadius: "6px",
+                border: "none",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                cursor: "pointer",
+                backgroundColor: viewMode === "tabs" ? "var(--bg-card)" : "transparent",
+                color: viewMode === "tabs" ? "var(--royal-blue)" : "var(--text-muted)",
+                boxShadow: viewMode === "tabs" ? "0 2px 4px rgba(0,0,0,0.1)" : "none",
+                transition: "all 0.15s ease"
+              }}
+            >
+              <List size={14} />
+              <span>Day View</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -364,6 +475,318 @@ export default function OverallTimetable({
           </div>
         </div>
       )}
+
+      {/* Official College Timetable Preview & Download Modal */}
+      {showDownloadModal && (
+        <div
+          className="admin-modal-overlay"
+          onClick={() => setShowDownloadModal(false)}
+          style={{ zIndex: 1200 }}
+        >
+          <div
+            className="admin-modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: "1150px",
+              width: "95vw",
+              maxHeight: "92vh",
+              overflowY: "auto",
+              padding: "1.5rem",
+              backgroundColor: "var(--bg-card)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "1.25rem"
+            }}
+          >
+            {/* Modal Controls Bar */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "0.85rem", flexWrap: "wrap", gap: "0.75rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <FileText size={20} color="var(--sky-blue)" />
+                <h3 style={{ fontSize: "1.1rem", fontWeight: "800", margin: 0, color: "var(--text-main)" }}>
+                  Official College Timetable (Print & Download)
+                </h3>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                <button
+                  onClick={handlePrint}
+                  className="btn-sky"
+                  style={{ display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.45rem 0.9rem", fontSize: "0.82rem", fontWeight: 700 }}
+                >
+                  <Printer size={15} />
+                  <span>Print / Save as PDF</span>
+                </button>
+
+                <button
+                  onClick={handleDownloadHtml}
+                  className="btn-royal"
+                  style={{ display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.45rem 0.9rem", fontSize: "0.82rem", fontWeight: 700 }}
+                >
+                  <Download size={15} />
+                  <span>Download HTML</span>
+                </button>
+
+                <button
+                  onClick={() => setShowDownloadModal(false)}
+                  style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "0.3rem" }}
+                  title="Close"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Official Printable Document Container */}
+            <div
+              id="official-printable-timetable"
+              style={{
+                backgroundColor: "#ffffff",
+                color: "#000000",
+                padding: "24px 28px",
+                borderRadius: "8px",
+                border: "1px solid #d1d5db",
+                boxShadow: "0 4px 14px rgba(0,0,0,0.1)",
+                fontFamily: "'Times New Roman', Times, serif",
+                fontSize: "11px",
+                lineHeight: "1.3"
+              }}
+            >
+              {/* College Header */}
+              <div style={{ textAlign: "center", borderBottom: "2px solid #000000", paddingBottom: "8px", marginBottom: "12px" }}>
+                <h1 style={{ fontSize: "14pt", fontWeight: "bold", textTransform: "uppercase", margin: "0 0 2px 0", letterSpacing: "0.02em", color: "#000000" }}>
+                  VEL TECH MULTI TECH Dr.RANGARAJAN Dr.SAKUNTHALA ENGINEERING COLLEGE
+                </h1>
+                <p style={{ fontSize: "9.5pt", fontStyle: "italic", margin: "0 0 4px 0", color: "#333333" }}>
+                  (An Autonomous Institution - Affiliated to Anna University, Chennai)
+                </p>
+                <h2 style={{ fontSize: "11pt", fontWeight: "bold", textTransform: "uppercase", margin: "0 0 6px 0", color: "#000000" }}>
+                  DEPARTMENT OF COMPUTER SCIENCE AND ENGINEERING
+                </h2>
+                <div style={{ display: "inline-block", border: "1.5px solid #000000", padding: "2px 16px", fontWeight: "bold", fontSize: "11pt", textTransform: "uppercase", letterSpacing: "0.05em", color: "#000000" }}>
+                  {mode === "student" ? "CLASS TIME TABLE" : "INDIVIDUAL TIME TABLE"}
+                </div>
+              </div>
+
+              {/* Details Box */}
+              <div style={{ border: "1px solid #000000", padding: "8px 12px", marginBottom: "12px", backgroundColor: "#fafafa" }}>
+                <div style={{ fontWeight: "bold", fontSize: "10pt", marginBottom: "4px", borderBottom: "1px dotted #888", paddingBottom: "2px" }}>
+                  {mode === "student" ? "Student Details" : "Faculty Details"}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr", gap: "6px", fontSize: "9.5pt" }}>
+                  <div>
+                    <strong>{mode === "student" ? "Student Name:" : "Name of Faculty:"}</strong> {resolvedName}
+                  </div>
+                  <div>
+                    <strong>{mode === "student" ? "Roll / VM No:" : "MTS / VMS No:"}</strong> {resolvedId}
+                  </div>
+                  <div>
+                    <strong>{mode === "student" ? "Class & Section:" : "Designation:"}</strong> {mode === "student" ? resolvedClassId : resolvedDesignation}
+                  </div>
+                  <div>
+                    <strong>{mode === "student" ? "Academic Year:" : "Total Hours/Week:"}</strong> {mode === "student" ? "2025 - 2026" : `${totalWeeklyHours} Hours`}
+                  </div>
+                  <div>
+                    <strong>Department:</strong> {resolvedDept}
+                  </div>
+                  <div>
+                    <strong>Branch:</strong> CSE
+                  </div>
+                  {mode === "student" && userDetails?.semester && (
+                    <div>
+                      <strong>Semester:</strong> {userDetails.semester}
+                    </div>
+                  )}
+                  <div>
+                    <strong>Status:</strong> Active Regular
+                  </div>
+                </div>
+              </div>
+
+              {/* Timetable Grid Table */}
+              <div style={{ marginBottom: "14px" }}>
+                <div style={{ fontWeight: "bold", fontSize: "10pt", marginBottom: "4px" }}>
+                  Time Table Grid
+                </div>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "9pt", textAlign: "center", border: "1.5px solid #000000" }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#eaeaea" }}>
+                      <th style={{ border: "1px solid #000000", padding: "6px 4px", width: "70px", fontWeight: "bold" }}>
+                        Day Order (DO)
+                      </th>
+                      <th style={{ border: "1px solid #000000", padding: "4px", width: "75px" }}>
+                        <strong>1</strong><br /><span style={{ fontSize: "7pt" }}>08:05 - 08:55</span>
+                      </th>
+                      <th style={{ border: "1px solid #000000", padding: "4px", width: "75px" }}>
+                        <strong>2</strong><br /><span style={{ fontSize: "7pt" }}>08:55 - 09:45</span>
+                      </th>
+                      <th style={{ border: "1px solid #000000", padding: "4px", width: "75px" }}>
+                        <strong>3</strong><br /><span style={{ fontSize: "7pt" }}>10:00 - 10:50</span>
+                      </th>
+                      <th style={{ border: "1px solid #000000", padding: "4px", width: "75px" }}>
+                        <strong>4</strong><br /><span style={{ fontSize: "7pt" }}>10:50 - 11:40</span>
+                      </th>
+                      <th style={{ border: "1px solid #000000", padding: "4px", width: "70px", backgroundColor: "#e2e8f0", fontWeight: "bold" }}>
+                        Break / Lunch<br /><span style={{ fontSize: "7pt" }}>11:40 - 12:20</span>
+                      </th>
+                      <th style={{ border: "1px solid #000000", padding: "4px", width: "75px" }}>
+                        <strong>5</strong><br /><span style={{ fontSize: "7pt" }}>12:20 - 01:05</span>
+                      </th>
+                      <th style={{ border: "1px solid #000000", padding: "4px", width: "75px" }}>
+                        <strong>6</strong><br /><span style={{ fontSize: "7pt" }}>01:05 - 01:50</span>
+                      </th>
+                      <th style={{ border: "1px solid #000000", padding: "4px", width: "75px" }}>
+                        <strong>7</strong><br /><span style={{ fontSize: "7pt" }}>02:00 - 02:45</span>
+                      </th>
+                      <th style={{ border: "1px solid #000000", padding: "4px", width: "75px" }}>
+                        <strong>8</strong><br /><span style={{ fontSize: "7pt" }}>02:45 - 03:30</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {DAY_ORDERS.map((dOrder) => {
+                      const dayEntries = timetableMap[dOrder] || [];
+                      const p1 = dayEntries.find(e => e.period === 1);
+                      const p2 = dayEntries.find(e => e.period === 2);
+                      const p3 = dayEntries.find(e => e.period === 3);
+                      const p4 = dayEntries.find(e => e.period === 4);
+                      const p5 = dayEntries.find(e => e.period === 5);
+                      const p6 = dayEntries.find(e => e.period === 6);
+                      const p7 = dayEntries.find(e => e.period === 7);
+                      const p8 = dayEntries.find(e => e.period === 8);
+
+                      return (
+                        <tr key={dOrder} style={{ height: "36px" }}>
+                          <td style={{ border: "1px solid #000000", fontWeight: "bold", backgroundColor: "#f2f2f2" }}>
+                            {dOrder}
+                          </td>
+                          {[p1, p2, p3, p4].map((slot, pIdx) => (
+                            <td key={pIdx} style={{ border: "1px solid #000000", padding: "4px 2px", verticalAlign: "middle" }}>
+                              {slot && slot.subjectName ? (
+                                <div>
+                                  <div style={{ fontWeight: "bold", fontSize: "8pt" }}>{slot.subjectCode}</div>
+                                  <div style={{ fontSize: "7pt" }}>{slot.subjectName.slice(0, 18)}</div>
+                                  <div style={{ fontSize: "6.5pt", color: "#555" }}>{slot.roomNo || ""}</div>
+                                </div>
+                              ) : (
+                                <span style={{ color: "#aaa" }}>-</span>
+                              )}
+                            </td>
+                          ))}
+                          <td style={{ border: "1px solid #000000", backgroundColor: "#f8f8f8", fontWeight: "bold", fontSize: "7pt", letterSpacing: "0.05em" }}>
+                            LUNCH BREAK
+                          </td>
+                          {[p5, p6, p7, p8].map((slot, pIdx) => (
+                            <td key={pIdx + 4} style={{ border: "1px solid #000000", padding: "4px 2px", verticalAlign: "middle" }}>
+                              {slot && slot.subjectName ? (
+                                <div>
+                                  <div style={{ fontWeight: "bold", fontSize: "8pt" }}>{slot.subjectCode}</div>
+                                  <div style={{ fontSize: "7pt" }}>{slot.subjectName.slice(0, 18)}</div>
+                                  <div style={{ fontSize: "6.5pt", color: "#555" }}>{slot.roomNo || ""}</div>
+                                </div>
+                              ) : (
+                                <span style={{ color: "#aaa" }}>-</span>
+                              )}
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Subject Details List Table */}
+              <div style={{ marginBottom: "16px" }}>
+                <div style={{ fontWeight: "bold", fontSize: "10pt", marginBottom: "4px" }}>
+                  Subject Details
+                </div>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "8.5pt", textAlign: "left", border: "1px solid #000000" }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#f0f0f0" }}>
+                      <th style={{ border: "1px solid #000000", padding: "4px 6px", width: "35px" }}>S.No</th>
+                      <th style={{ border: "1px solid #000000", padding: "4px 6px", width: "85px" }}>Subject Code</th>
+                      <th style={{ border: "1px solid #000000", padding: "4px 6px" }}>Subject Name</th>
+                      <th style={{ border: "1px solid #000000", padding: "4px 6px", width: "120px" }}>Handled By / Class</th>
+                      <th style={{ border: "1px solid #000000", padding: "4px 6px", width: "70px" }}>Room No</th>
+                      <th style={{ border: "1px solid #000000", padding: "4px 6px", width: "55px", textAlign: "center" }}>Periods</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {uniqueSubjects.length > 0 ? (
+                      uniqueSubjects.map((sub, sIdx) => (
+                        <tr key={sub.code + sIdx}>
+                          <td style={{ border: "1px solid #000000", padding: "4px 6px", textAlign: "center" }}>{sIdx + 1}</td>
+                          <td style={{ border: "1px solid #000000", padding: "4px 6px", fontWeight: "bold" }}>{sub.code}</td>
+                          <td style={{ border: "1px solid #000000", padding: "4px 6px" }}>{sub.name}</td>
+                          <td style={{ border: "1px solid #000000", padding: "4px 6px" }}>{sub.faculty}</td>
+                          <td style={{ border: "1px solid #000000", padding: "4px 6px" }}>{sub.room}</td>
+                          <td style={{ border: "1px solid #000000", padding: "4px 6px", textAlign: "center", fontWeight: "bold" }}>{sub.hours}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={6} style={{ border: "1px solid #000000", padding: "8px", textAlign: "center", color: "#666" }}>
+                          No subject assignments mapped in this timetable.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Signatures Footer */}
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: "36px", padding: "0 15px", fontSize: "9.5pt", fontWeight: "bold" }}>
+                <div style={{ textAlign: "center", width: "200px" }}>
+                  <div style={{ borderTop: "1px solid #000000", paddingTop: "5px" }}>
+                    {mode === "student" ? "Student Signature" : "Faculty Signature"}
+                  </div>
+                </div>
+                <div style={{ textAlign: "center", width: "200px" }}>
+                  <div style={{ borderTop: "1px solid #000000", paddingTop: "5px" }}>
+                    Time Table Coordinator
+                  </div>
+                </div>
+                <div style={{ textAlign: "center", width: "200px" }}>
+                  <div style={{ borderTop: "1px solid #000000", paddingTop: "5px" }}>
+                    Head of the Department (HOD)
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Embedded Print Styling */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
+        @media print {
+          body * {
+            visibility: hidden !important;
+          }
+          #official-printable-timetable,
+          #official-printable-timetable * {
+            visibility: visible !important;
+          }
+          #official-printable-timetable {
+            position: fixed !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100vw !important;
+            margin: 0 !important;
+            padding: 12px !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            box-shadow: none !important;
+            border: none !important;
+            z-index: 999999 !important;
+          }
+          @page {
+            size: landscape;
+            margin: 8mm;
+          }
+        }
+      `}} />
     </section>
   );
 }

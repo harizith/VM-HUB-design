@@ -43,10 +43,19 @@ export async function GET(request: Request) {
 
     let fullTimetable: any[] = [];
     const vmNo = user.vmNo || user.facultyProfile?.vmNo;
+    const name = user.name || "";
     try {
-      if (vmNo) {
+      const orConditions: any[] = [];
+      if (vmNo && vmNo.trim()) {
+        orConditions.push({ vmsNo: { contains: vmNo.trim() } });
+      }
+      if (name && name.trim()) {
+        orConditions.push({ facultyName: { contains: name.trim(), mode: "insensitive" } });
+      }
+
+      if (orConditions.length > 0) {
         fullTimetable = await prisma.timetableEntry.findMany({
-          where: { vmsNo: { contains: vmNo.trim() } },
+          where: { OR: orConditions },
           orderBy: [{ dayOrder: "asc" }, { period: "asc" }]
         });
       }

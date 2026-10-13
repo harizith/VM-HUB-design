@@ -2,10 +2,13 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Users, Building2, BookOpen, Megaphone, Calendar, Sun, Moon, Globe, GraduationCap, Briefcase, UserCircle, Shield, Save, Edit, ArrowRight, Trash2, FileSpreadsheet, UserPlus } from "lucide-react";
+import { Users, Building2, BookOpen, Megaphone, Calendar, Sun, Moon, Globe, GraduationCap, Briefcase, UserCircle, Shield, Save, Edit, ArrowRight, Trash2, FileSpreadsheet, UserPlus, FileText, X } from "lucide-react";
 import AdminAgentChat from "@/components/AdminAgentChat";
+import AdminTimetablePdfUpload from "@/components/AdminTimetablePdfUpload";
 import AdminTimetableExcelUpload from "@/components/AdminTimetableExcelUpload";
 import AdminUserExcelUpload from "@/components/AdminUserExcelUpload";
+import CourseCatalog from "@/components/CourseCatalog";
+import OverallTimetable from "@/components/OverallTimetable";
 
 interface UserItem {
   id: string;
@@ -20,6 +23,8 @@ interface UserItem {
     department: string;
     semester: number;
     batch: string;
+    year?: string;
+    section?: string;
   } | null;
   facultyProfile?: {
     vmNo: string;
@@ -77,9 +82,12 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
 
   // Timetable State
+  const [timetableMode, setTimetableMode] = useState<"faculty" | "class">("faculty");
   const [selectedDept, setSelectedDept] = useState("CSE");
   const [selectedYear, setSelectedYear] = useState("II");
   const [selectedSection, setSelectedSection] = useState("A");
+  const [selectedFaculty, setSelectedFaculty] = useState("");
+  const [availableFaculty, setAvailableFaculty] = useState<{ name: string; vmsNo: string | null }[]>([]);
   const [timetable, setTimetable] = useState<TimetableEntry[]>([]);
   const [isEditingTimetable, setIsEditingTimetable] = useState(false);
   const [loadingTimetable, setLoadingTimetable] = useState(false);
@@ -100,6 +108,220 @@ export default function AdminPage() {
   const [showDeptModal, setShowDeptModal] = useState(false);
   const [showSubjectModal, setShowSubjectModal] = useState(false);
   const [showNoticeModal, setShowNoticeModal] = useState(false);
+
+  // User Timetable Modal State
+  const [userTimetableModalUser, setUserTimetableModalUser] = useState<UserItem | null>(null);
+  const [userTimetableMap, setUserTimetableMap] = useState<Record<string, TimetableEntry[]> | null>(null);
+  const [loadingUserTimetable, setLoadingUserTimetable] = useState(false);
+  const [userTimetableError, setUserTimetableError] = useState<string | null>(null);
+  const [userTimetableClassId, setUserTimetableClassId] = useState<string>("");
+  const [userTimetableFacultyName, setUserTimetableFacultyName] = useState<string>("");
+  const [userTimetableRaw, setUserTimetableRaw] = useState<TimetableEntry[]>([]);
+  const [modalSelectedClass, setModalSelectedClass] = useState<string>("");
+  const [modalSelectedFaculty, setModalSelectedFaculty] = useState<string>("");
+
+  // Helper to compute standard student class ID from profile
+  const computeClassId = (profile?: UserItem["studentProfile"]): string => {
+    if (!profile) return "II-CSE-A";
+    let yr = profile.year;
+    if (!yr && profile.semester) {
+      if (profile.semester <= 2) yr = "I";
+      else if (profile.semester <= 4) yr = "II";
+      else if (profile.semester <= 6) yr = "III";
+      else yr = "IV";
+    }
+    if (!yr) yr = "II";
+    if (yr === "1") yr = "I";
+    if (yr === "2") yr = "II";
+    if (yr === "3") yr = "III";
+    if (yr === "4") yr = "IV";
+
+    let dept = (profile.department || "CSE").toUpperCase();
+    if (dept.includes("COMPUTER SCIENCE") || dept.includes("CSE")) dept = "CSE";
+    else if (dept.includes("INFORMATION") || dept.includes("IT")) dept = "IT";
+    else if (dept.includes("ELECTRONICS") || dept.includes("ECE")) dept = "ECE";
+    else if (dept.includes("MECHANICAL") || dept.includes("MECH")) dept = "MECH";
+    else if (dept.includes("AI") || dept.includes("AIDS")) dept = "AIDS";
+    else dept = dept.replace(/^B\.E\s+/i, "").replace(/[^A-Z]/g, "") || "CSE";
+
+    const sec = (profile.section || "A").toUpperCase();
+    return `${yr}-${dept}-${sec}`;
+  };
+
+  const transformToTimetableMap = (entries: TimetableEntry[]): Record<string, TimetableEntry[]> => {
+    const map: Record<string, TimetableEntry[]> = {
+      "I": [], "II": [], "III": [], "IV": [], "V": []
+    };
+    entries.forEach((e) => {
+      const d = (e.dayOrder || "").toUpperCase().trim();
+      if (map[d]) {
+        map[d].push(e);
+      }
+    });
+    Object.keys(map).forEach((d) => {
+      map[d].sort((a, b) => a.period - b.period);
+    });
+    return map;
+  };
+
+  const openUserTimetable = async (u: UserItem) => {
+    setUserTimetableModalUser(u);
+    setLoadingUserTimetable(true);
+    setUserTimetableError(null);
+    setUserTimetableMap(null);
+    setUserTimetableRaw([]);
+
+    try {
+      if (u.role === "STUDENT") {
+        const classId = computeClassId(u.studentProfile);
+        setUserTimetableClassId(classId);
+        setModalSelectedClass(classId);
+        setUserTimetableFacultyName("");
+
+        const res = await fetch(`/api/admin/timetable?classId=${encodeURIComponent(classId)}`).then(r => r.json());
+        if (res.success) {
+          const list = res.timetable || [];
+          setUserTimetableRaw(list);
+          setUserTimetableMap(transformToTimetableMap(list));
+          if (list.length === 0) {
+            setUserTimetableError(`No schedule records found in master timetable for class ${classId}.`);
+          }
+        } else {
+          setUserTimetableError(res.error || "Failed to load class timetable.");
+        }
+      } else if (u.role === "FACULTY" || u.role === "HOD") {
+        const vmNo = u.facultyProfile?.vmNo || u.vmNo;
+        let queryTarget = vmNo || u.name;
+
+        // Check if there is a match in availableFaculty
+        if (availableFaculty && availableFaculty.length > 0) {
+          const vmMatch = vmNo ? availableFaculty.find(f => f.vmsNo && f.vmsNo.trim() === vmNo.trim()) : null;
+          if (vmMatch) {
+            queryTarget = vmMatch.name;
+          } else {
+            const cleanUName = u.name.replace(/^(Dr\.?|Mr\.?|Ms\.?|Mrs\.?|Prof\.?)\s+/i, '').toLowerCase().trim();
+            const nameMatch = availableFaculty.find(f => {
+              const cleanFName = f.name.replace(/^(Dr\.?|Mr\.?|Ms\.?|Mrs\.?|Prof\.?)\s+/i, '').toLowerCase().trim();
+              return cleanFName.includes(cleanUName) || cleanUName.includes(cleanFName);
+            });
+            if (nameMatch) {
+              queryTarget = nameMatch.name;
+            }
+          }
+        }
+
+        setUserTimetableFacultyName(queryTarget);
+        setModalSelectedFaculty(queryTarget);
+        setUserTimetableClassId("");
+
+        const res = await fetch(`/api/admin/timetable?facultyName=${encodeURIComponent(queryTarget)}`).then(r => r.json());
+        if (res.success && res.timetable && res.timetable.length > 0) {
+          setUserTimetableRaw(res.timetable);
+          setUserTimetableMap(transformToTimetableMap(res.timetable));
+        } else {
+          // If 0 entries found with name, try fallback with vmNo
+          if (vmNo && queryTarget !== vmNo) {
+            const fallbackRes = await fetch(`/api/admin/timetable?facultyName=${encodeURIComponent(vmNo)}`).then(r => r.json());
+            if (fallbackRes.success && fallbackRes.timetable && fallbackRes.timetable.length > 0) {
+              setUserTimetableRaw(fallbackRes.timetable);
+              setUserTimetableMap(transformToTimetableMap(fallbackRes.timetable));
+              setUserTimetableFacultyName(`${u.name} (VMS: ${vmNo})`);
+              setLoadingUserTimetable(false);
+              return;
+            }
+          }
+          setUserTimetableRaw([]);
+          setUserTimetableMap(transformToTimetableMap([]));
+          setUserTimetableError(`No teaching schedule found for faculty "${queryTarget}".`);
+        }
+      } else {
+        setUserTimetableError("ADMIN_ROLE");
+      }
+    } catch (err: any) {
+      setUserTimetableError(err.message || "Network error loading user timetable.");
+    } finally {
+      setLoadingUserTimetable(false);
+    }
+  };
+
+  const handleModalClassChange = async (newClassId: string) => {
+    setModalSelectedClass(newClassId);
+    setUserTimetableClassId(newClassId);
+    setLoadingUserTimetable(true);
+    setUserTimetableError(null);
+    try {
+      const res = await fetch(`/api/admin/timetable?classId=${encodeURIComponent(newClassId)}`).then(r => r.json());
+      if (res.success) {
+        const list = res.timetable || [];
+        setUserTimetableRaw(list);
+        setUserTimetableMap(transformToTimetableMap(list));
+        if (list.length === 0) {
+          setUserTimetableError(`No schedule records found for class ${newClassId}.`);
+        }
+      } else {
+        setUserTimetableError(res.error || "Failed to load class timetable.");
+      }
+    } catch (err: any) {
+      setUserTimetableError(err.message || "Failed to fetch class timetable.");
+    } finally {
+      setLoadingUserTimetable(false);
+    }
+  };
+
+  const handleModalFacultyChange = async (newFacultyName: string) => {
+    setModalSelectedFaculty(newFacultyName);
+    setUserTimetableFacultyName(newFacultyName);
+    setLoadingUserTimetable(true);
+    setUserTimetableError(null);
+    try {
+      const res = await fetch(`/api/admin/timetable?facultyName=${encodeURIComponent(newFacultyName)}`).then(r => r.json());
+      if (res.success) {
+        const list = res.timetable || [];
+        setUserTimetableRaw(list);
+        setUserTimetableMap(transformToTimetableMap(list));
+        if (list.length === 0) {
+          setUserTimetableError(`No schedule records found for faculty "${newFacultyName}".`);
+        }
+      } else {
+        setUserTimetableError(res.error || "Failed to load faculty schedule.");
+      }
+    } catch (err: any) {
+      setUserTimetableError(err.message || "Failed to fetch faculty schedule.");
+    } finally {
+      setLoadingUserTimetable(false);
+    }
+  };
+
+  const jumpToTimetableTab = (targetType: "class" | "faculty", value: string) => {
+    setUserTimetableModalUser(null);
+    setActiveTab("timetable");
+    if (targetType === "class") {
+      setTimetableMode("class");
+      const parts = value.split("-");
+      if (parts.length >= 3) {
+        setSelectedYear(parts[0]);
+        setSelectedDept(parts[1]);
+        setSelectedSection(parts[2]);
+      }
+      setTimeout(() => {
+        fetch(`/api/admin/timetable?classId=${encodeURIComponent(value)}`)
+          .then(r => r.json())
+          .then(res => {
+            if (res.success && res.timetable) setTimetable(res.timetable);
+          });
+      }, 100);
+    } else {
+      setTimetableMode("faculty");
+      setSelectedFaculty(value);
+      setTimeout(() => {
+        fetch(`/api/admin/timetable?facultyName=${encodeURIComponent(value)}`)
+          .then(r => r.json())
+          .then(res => {
+            if (res.success && res.timetable) setTimetable(res.timetable);
+          });
+      }, 100);
+    }
+  };
 
   // User Form
   const [newUserEmail, setNewUserEmail] = useState("");
@@ -161,6 +383,18 @@ export default function AdminPage() {
         setTomorrowStatus(lRes.data.tomorrow);
         setTodayDateStr(lRes.data.todayDate);
         setTomorrowDateStr(lRes.data.tomorrowDate);
+      }
+      // Fetch timetable options (available classes & faculty)
+      try {
+        const ttOpt = await fetch("/api/admin/timetable?list=options").then((r) => r.json());
+        if (ttOpt.success && ttOpt.options) {
+          setAvailableFaculty(ttOpt.options.faculty || []);
+          if (ttOpt.options.faculty?.length > 0 && !selectedFaculty) {
+            setSelectedFaculty(ttOpt.options.faculty[0].name);
+          }
+        }
+      } catch (e) {
+        console.error("Error fetching timetable options:", e);
       }
     } catch (err) {
       console.error("Error fetching data:", err);
@@ -335,7 +569,7 @@ export default function AdminPage() {
               { id: "subjects", label: "Course Catalog", Icon: BookOpen, count: subjects.length },
               { id: "notices", label: "Announcements", Icon: Megaphone, count: notices.length },
               { id: "timetable", label: "Timetables", Icon: Calendar, count: 0 },
-              { id: "upload-timetable", label: "Upload Timetable Excel", Icon: FileSpreadsheet, count: 0 },
+              { id: "upload-timetable", label: "Upload Timetable PDF", Icon: FileText, count: 0 },
               { id: "upload-users", label: "Bulk User Onboarding", Icon: UserPlus, count: 0 },
               { id: "audit", label: "Audit Trail", Icon: Shield, count: auditLogs.length },
             ].map((nav) => (
@@ -495,7 +729,7 @@ export default function AdminPage() {
                   <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.9rem", minWidth: "600px" }}>
                     <thead>
                       <tr style={{ borderBottom: "1px solid var(--border-subtle)", backgroundColor: "var(--bg-card-header)", color: "var(--text-muted)" }}>
-                        <th style={{ padding: "0.85rem 1rem" }}>User Name</th><th style={{ padding: "0.85rem 1rem" }}>Email Address</th><th style={{ padding: "0.85rem 1rem" }}>Subdivision Role</th><th style={{ padding: "0.85rem 1rem" }}>Status</th><th style={{ padding: "0.85rem 1rem" }}>Profile Action</th>
+                        <th style={{ padding: "0.85rem 1rem" }}>User Name</th><th style={{ padding: "0.85rem 1rem" }}>Email Address</th><th style={{ padding: "0.85rem 1rem" }}>Subdivision Role</th><th style={{ padding: "0.85rem 1rem" }}>Status</th><th style={{ padding: "0.85rem 1rem" }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -522,21 +756,53 @@ export default function AdminPage() {
                             </td>
                             <td style={{ padding: "0.85rem 1rem", color: "#10b981", fontWeight: "600" }}>● {u.status}</td>
                             <td style={{ padding: "0.85rem 1rem" }}>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); setSelectedUser(u); }}
-                                style={{
-                                  backgroundColor: "rgba(56, 189, 248, 0.15)",
-                                  color: "var(--sky-blue)",
-                                  border: "1px solid rgba(56, 189, 248, 0.3)",
-                                  padding: "0.3rem 0.75rem",
-                                  borderRadius: "6px",
-                                  fontSize: "0.8rem",
-                                  fontWeight: "600",
-                                  cursor: "pointer"
-                                }}
-                              >
-                                View Profile →
-                              </button>
+                              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setSelectedUser(u); }}
+                                  style={{
+                                    backgroundColor: "rgba(56, 189, 248, 0.15)",
+                                    color: "var(--sky-blue)",
+                                    border: "1px solid rgba(56, 189, 248, 0.3)",
+                                    padding: "0.3rem 0.75rem",
+                                    borderRadius: "6px",
+                                    fontSize: "0.8rem",
+                                    fontWeight: "600",
+                                    cursor: "pointer",
+                                    whiteSpace: "nowrap"
+                                  }}
+                                >
+                                  View Profile →
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); openUserTimetable(u); }}
+                                  title={`View timetable for ${u.name}`}
+                                  style={{
+                                    backgroundColor: "rgba(29, 78, 216, 0.15)",
+                                    color: "var(--sky-blue)",
+                                    border: "1px solid rgba(29, 78, 216, 0.4)",
+                                    padding: "0.3rem 0.75rem",
+                                    borderRadius: "6px",
+                                    fontSize: "0.8rem",
+                                    fontWeight: "600",
+                                    cursor: "pointer",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "0.35rem",
+                                    whiteSpace: "nowrap",
+                                    transition: "all 0.15s ease"
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = "var(--royal-blue)";
+                                    e.currentTarget.style.color = "#ffffff";
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = "rgba(29, 78, 216, 0.15)";
+                                    e.currentTarget.style.color = "var(--sky-blue)";
+                                  }}
+                                >
+                                  <Calendar size={13} /> Timetable
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))
@@ -571,77 +837,13 @@ export default function AdminPage() {
               </div>
             )}
 
-            {/* SUBJECTS */}
+            {/* SUBJECTS & COURSE CATALOG */}
             {activeTab === "subjects" && (
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-                  <div>
-                    <h3 style={{ fontSize: "1.1rem", fontWeight: "700", margin: 0 }}>Course Catalog</h3>
-                    <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: 0 }}>Click any subject to view the assigned handling faculty, course lead, and HOD</p>
-                  </div>
-                  <button onClick={() => setShowSubjectModal(true)} className="btn-royal">+ Add New Subject</button>
-                </div>
-                <div className="responsive-table-wrapper">
-                  <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.9rem", minWidth: "700px" }}>
-                    <thead>
-                      <tr style={{ borderBottom: "1px solid var(--border-subtle)", backgroundColor: "var(--bg-card-header)", color: "var(--text-muted)" }}>
-                        <th style={{ padding: "0.85rem 1rem" }}>Code</th>
-                        <th style={{ padding: "0.85rem 1rem" }}>Subject Title</th>
-                        <th style={{ padding: "0.85rem 1rem" }}>Dept</th>
-                        <th style={{ padding: "0.85rem 1rem" }}>Semester</th>
-                        <th style={{ padding: "0.85rem 1rem" }}>Credits</th>
-                        <th style={{ padding: "0.85rem 1rem" }}>Handling Staff</th>
-                        <th style={{ padding: "0.85rem 1rem" }}>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {subjects.map((s) => (
-                        <tr
-                          key={s.id}
-                          onClick={() => setSelectedSubject(s)}
-                          style={{
-                            borderBottom: "1px solid var(--border-subtle)",
-                            cursor: "pointer",
-                            backgroundColor: selectedSubject?.id === s.id ? "rgba(56, 189, 248, 0.08)" : "transparent",
-                            transition: "background-color 0.2s ease"
-                          }}
-                        >
-                          <td style={{ padding: "0.85rem 1rem", fontWeight: "700", color: "var(--sky-blue)" }}>{s.code}</td>
-                          <td style={{ padding: "0.85rem 1rem", fontWeight: "600" }}>{s.name}</td>
-                          <td style={{ padding: "0.85rem 1rem" }}>{s.departmentCode}</td>
-                          <td style={{ padding: "0.85rem 1rem" }}>Semester {s.semester}</td>
-                          <td style={{ padding: "0.85rem 1rem", fontWeight: "600" }}>{s.credits} Credits</td>
-                          <td style={{ padding: "0.85rem 1rem" }}>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setSelectedSubject(s); }}
-                              style={{
-                                backgroundColor: "rgba(56, 189, 248, 0.15)",
-                                color: "var(--sky-blue)",
-                                border: "1px solid rgba(56, 189, 248, 0.3)",
-                                padding: "0.3rem 0.75rem",
-                                borderRadius: "6px",
-                                fontSize: "0.8rem",
-                                fontWeight: "600",
-                                cursor: "pointer"
-                              }}
-                            >
-                              <span style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}><Users size={14} /> View Handling Staff <ArrowRight size={14} /></span>
-                            </button>
-                          </td>
-                          <td style={{ padding: "0.85rem 1rem" }}>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleDeleteSubject(s.id); }}
-                              style={{ backgroundColor: "rgba(239,68,68,0.15)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)", padding: "0.25rem 0.6rem", borderRadius: "4px", fontSize: "0.75rem", fontWeight: "600", cursor: "pointer" }}
-                            >
-                              Delete
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              <CourseCatalog
+                mode="admin"
+                departments={depts}
+                onCourseUpdated={fetchData}
+              />
             )}
 
             {/* NOTICES */}
@@ -747,100 +949,214 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
                   <div>
-                    <h3 style={{ fontSize: "1.1rem", fontWeight: "700", margin: 0 }}>Class Timetable Management</h3>
-                    <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: 0 }}>View and modify schedules for specific classes</p>
+                    <h3 style={{ fontSize: "1.1rem", fontWeight: "700", margin: 0 }}>Timetable Schedule Management</h3>
+                    <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: 0 }}>
+                      View, verify, and modify weekly schedules by Faculty or by Student Class
+                    </p>
                   </div>
-                  {timetable.length > 0 && (
-                    <button onClick={async () => {
-                      if (isEditingTimetable) {
-                        setLoadingTimetable(true);
-                        const classId = `${selectedYear}-${selectedDept}-${selectedSection}`;
-                        const res = await fetch("/api/admin/timetable", {
-                          method: "PUT",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ classId, entries: timetable })
-                        }).then(r => r.json());
-                        if(res.success) { alert("Timetable updated!"); setIsEditingTimetable(false); }
-                        else { alert("Failed to update: " + res.error); }
-                        setLoadingTimetable(false);
-                      } else {
-                        setIsEditingTimetable(true);
-                      }
-                    }} className={isEditingTimetable ? "btn-royal" : "btn-sky"}>
-                      <span style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                        {isEditingTimetable ? <><Save size={16} /> Save Changes</> : <><Edit size={16} /> Edit Timetable</>}
-                      </span>
-                    </button>
-                  )}
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <div style={{ display: "flex", backgroundColor: "var(--bg-card-header)", padding: "3px", borderRadius: "8px", border: "1px solid var(--border-subtle)" }}>
+                      <button
+                        onClick={() => {
+                          setTimetableMode("faculty");
+                          setTimetable([]);
+                          setIsEditingTimetable(false);
+                        }}
+                        style={{
+                          padding: "0.4rem 0.85rem",
+                          borderRadius: "6px",
+                          fontSize: "0.85rem",
+                          fontWeight: "600",
+                          border: "none",
+                          cursor: "pointer",
+                          backgroundColor: timetableMode === "faculty" ? "var(--sky-blue)" : "transparent",
+                          color: timetableMode === "faculty" ? "#000" : "var(--text-muted)",
+                          transition: "all 0.2s"
+                        }}
+                      >
+                        👥 By Faculty
+                      </button>
+                      <button
+                        onClick={() => {
+                          setTimetableMode("class");
+                          setTimetable([]);
+                          setIsEditingTimetable(false);
+                        }}
+                        style={{
+                          padding: "0.4rem 0.85rem",
+                          borderRadius: "6px",
+                          fontSize: "0.85rem",
+                          fontWeight: "600",
+                          border: "none",
+                          cursor: "pointer",
+                          backgroundColor: timetableMode === "class" ? "var(--sky-blue)" : "transparent",
+                          color: timetableMode === "class" ? "#000" : "var(--text-muted)",
+                          transition: "all 0.2s"
+                        }}
+                      >
+                        🏫 By Class
+                      </button>
+                    </div>
+
+                    {timetable.length > 0 && timetableMode === "class" && (
+                      <button onClick={async () => {
+                        if (isEditingTimetable) {
+                          setLoadingTimetable(true);
+                          const classId = `${selectedYear}-${selectedDept}-${selectedSection}`;
+                          const res = await fetch("/api/admin/timetable", {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ classId, entries: timetable })
+                          }).then(r => r.json());
+                          if(res.success) { alert("Timetable updated!"); setIsEditingTimetable(false); }
+                          else { alert("Failed to update: " + res.error); }
+                          setLoadingTimetable(false);
+                        } else {
+                          setIsEditingTimetable(true);
+                        }
+                      }} className={isEditingTimetable ? "btn-royal" : "btn-sky"}>
+                        <span style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                          {isEditingTimetable ? <><Save size={16} /> Save Changes</> : <><Edit size={16} /> Edit Timetable</>}
+                        </span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
-                <div style={{ display: "flex", gap: "1rem", marginBottom: "1.5rem", backgroundColor: "var(--bg-card)", padding: "1rem", borderRadius: "12px", border: "1px solid var(--border-subtle)", flexWrap: "wrap" }}>
-                  <select value={selectedDept} onChange={(e) => setSelectedDept(e.target.value)} className="premium-input" style={{ flex: 1, minWidth: "150px" }}>
-                    <option value="CSE">CSE</option>
-                    <option value="IT">IT</option>
-                    <option value="ECE">ECE</option>
-                    <option value="MECH">MECH</option>
-                  </select>
-                  <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="premium-input" style={{ flex: 1, minWidth: "150px" }}>
-                    <option value="I">Year I</option>
-                    <option value="II">Year II</option>
-                    <option value="III">Year III</option>
-                    <option value="IV">Year IV</option>
-                  </select>
-                  <select value={selectedSection} onChange={(e) => setSelectedSection(e.target.value)} className="premium-input" style={{ flex: 1, minWidth: "150px" }}>
-                    <option value="A">Section A</option>
-                    <option value="B">Section B</option>
-                    <option value="C">Section C</option>
-                  </select>
-                  <button onClick={async () => {
-                    setLoadingTimetable(true);
-                    setIsEditingTimetable(false);
-                    const classId = `${selectedYear}-${selectedDept}-${selectedSection}`;
-                    const res = await fetch(`/api/admin/timetable?classId=${classId}`).then(r => r.json());
-                    if (res.success) {
-                      setTimetable(res.timetable);
-                    } else {
-                      alert("Error: " + res.error);
-                    }
-                    setLoadingTimetable(false);
-                  }} className="btn-royal" style={{ minWidth: "140px" }}>Fetch Timetable</button>
+                {/* Filters */}
+                <div style={{ display: "flex", gap: "1rem", marginBottom: "1.5rem", backgroundColor: "var(--bg-card)", padding: "1rem", borderRadius: "12px", border: "1px solid var(--border-subtle)", flexWrap: "wrap", alignItems: "center" }}>
+                  {timetableMode === "faculty" ? (
+                    <>
+                      <div style={{ flex: 2, minWidth: "240px" }}>
+                        <label style={{ display: "block", fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.3rem" }}>Select Faculty Member</label>
+                        <select
+                          value={selectedFaculty}
+                          onChange={(e) => setSelectedFaculty(e.target.value)}
+                          className="premium-input"
+                          style={{ width: "100%" }}
+                        >
+                          {availableFaculty.length > 0 ? (
+                            availableFaculty.map((f) => (
+                              <option key={f.name} value={f.name}>
+                                {f.name} {f.vmsNo ? `(MTS/VMS: ${f.vmsNo})` : ""}
+                              </option>
+                            ))
+                          ) : (
+                            <option value="">No faculty loaded</option>
+                          )}
+                        </select>
+                      </div>
 
-                  <button onClick={async () => {
-                    const classId = `${selectedYear}-${selectedDept}-${selectedSection}`;
-                    if (!confirm(`Are you sure you want to permanently delete the entire timetable for class ${classId}?`)) return;
-                    setLoadingTimetable(true);
-                    try {
-                      const res = await fetch(`/api/admin/timetable?classId=${classId}`, { method: "DELETE" }).then(r => r.json());
-                      if (res.success) {
-                        setTimetable([]);
-                        alert(`Successfully deleted timetable for ${classId} (${res.count} periods removed)`);
-                      } else {
-                        alert("Error deleting timetable: " + res.error);
-                      }
-                    } catch (e: any) {
-                      alert("Failed to delete: " + e.message);
-                    } finally {
-                      setLoadingTimetable(false);
-                    }
-                  }} style={{
-                    minWidth: "140px",
-                    backgroundColor: "rgba(239, 68, 68, 0.12)",
-                    color: "#ef4444",
-                    border: "1px solid rgba(239, 68, 68, 0.3)",
-                    padding: "0.6rem 1rem",
-                    borderRadius: "8px",
-                    fontWeight: "600",
-                    fontSize: "0.85rem",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "0.4rem"
-                  }}>
-                    <Trash2 size={16} /> Delete Timetable
-                  </button>
+                      <button
+                        onClick={async () => {
+                          if (!selectedFaculty) return;
+                          setLoadingTimetable(true);
+                          setIsEditingTimetable(false);
+                          try {
+                            const res = await fetch(`/api/admin/timetable?facultyName=${encodeURIComponent(selectedFaculty)}`).then(r => r.json());
+                            if (res.success) {
+                              setTimetable(res.timetable);
+                            } else {
+                              alert("Error: " + res.error);
+                            }
+                          } catch (e: any) {
+                            alert("Fetch failed: " + e.message);
+                          } finally {
+                            setLoadingTimetable(false);
+                          }
+                        }}
+                        className="btn-royal"
+                        style={{ minWidth: "150px", alignSelf: "flex-end", height: "42px" }}
+                      >
+                        Fetch Schedule
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ flex: 1, minWidth: "140px" }}>
+                        <label style={{ display: "block", fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.3rem" }}>Department</label>
+                        <select value={selectedDept} onChange={(e) => setSelectedDept(e.target.value)} className="premium-input" style={{ width: "100%" }}>
+                          <option value="CSE">CSE</option>
+                          <option value="IT">IT</option>
+                          <option value="ECE">ECE</option>
+                          <option value="MECH">MECH</option>
+                        </select>
+                      </div>
+
+                      <div style={{ flex: 1, minWidth: "140px" }}>
+                        <label style={{ display: "block", fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.3rem" }}>Year</label>
+                        <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="premium-input" style={{ width: "100%" }}>
+                          <option value="I">Year I</option>
+                          <option value="II">Year II</option>
+                          <option value="III">Year III</option>
+                          <option value="IV">Year IV</option>
+                        </select>
+                      </div>
+
+                      <div style={{ flex: 1, minWidth: "120px" }}>
+                        <label style={{ display: "block", fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.3rem" }}>Section</label>
+                        <select value={selectedSection} onChange={(e) => setSelectedSection(e.target.value)} className="premium-input" style={{ width: "100%" }}>
+                          <option value="A">Section A</option>
+                          <option value="B">Section B</option>
+                          <option value="C">Section C</option>
+                        </select>
+                      </div>
+
+                      <button onClick={async () => {
+                        setLoadingTimetable(true);
+                        setIsEditingTimetable(false);
+                        const classId = `${selectedYear}-${selectedDept}-${selectedSection}`;
+                        const res = await fetch(`/api/admin/timetable?classId=${encodeURIComponent(classId)}`).then(r => r.json());
+                        if (res.success) {
+                          setTimetable(res.timetable);
+                        } else {
+                          alert("Error: " + res.error);
+                        }
+                        setLoadingTimetable(false);
+                      }} className="btn-royal" style={{ minWidth: "140px", alignSelf: "flex-end", height: "42px" }}>
+                        Fetch Timetable
+                      </button>
+
+                      <button onClick={async () => {
+                        const classId = `${selectedYear}-${selectedDept}-${selectedSection}`;
+                        if (!confirm(`Are you sure you want to permanently delete the entire timetable for class ${classId}?`)) return;
+                        setLoadingTimetable(true);
+                        try {
+                          const res = await fetch(`/api/admin/timetable?classId=${encodeURIComponent(classId)}`, { method: "DELETE" }).then(r => r.json());
+                          if (res.success) {
+                            setTimetable([]);
+                            alert(`Successfully deleted timetable for ${classId} (${res.count} periods removed)`);
+                          } else {
+                            alert("Error deleting timetable: " + res.error);
+                          }
+                        } catch (e: any) {
+                          alert("Failed to delete: " + e.message);
+                        } finally {
+                          setLoadingTimetable(false);
+                        }
+                      }} style={{
+                        minWidth: "140px",
+                        alignSelf: "flex-end",
+                        height: "42px",
+                        backgroundColor: "rgba(239, 68, 68, 0.12)",
+                        color: "#ef4444",
+                        border: "1px solid rgba(239, 68, 68, 0.3)",
+                        padding: "0.6rem 1rem",
+                        borderRadius: "8px",
+                        fontWeight: "600",
+                        fontSize: "0.85rem",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "0.4rem"
+                      }}>
+                        <Trash2 size={16} /> Delete Timetable
+                      </button>
+                    </>
+                  )}
                 </div>
 
                 {loadingTimetable ? (
@@ -859,40 +1175,64 @@ export default function AdminPage() {
                           <tr key={day} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
                             <td style={{ padding: "0.85rem", fontWeight: "700", borderRight: "1px solid var(--border-subtle)", backgroundColor: "var(--bg-card-header)" }}>Day {day}</td>
                             {[1,2,3,4,5,6,7,8].map(period => {
-                              const entryIdx = timetable.findIndex(t => t.dayOrder === day && t.period === period);
-                              const entry = entryIdx !== -1 ? timetable[entryIdx] : null;
+                              const matchingEntries = timetable.filter(t => t.dayOrder === day && t.period === period);
+                              const primaryEntry = matchingEntries[0] || null;
                               return (
                                 <td key={period} style={{ padding: "0.5rem", borderRight: "1px solid var(--border-subtle)", verticalAlign: "top" }}>
                                   {isEditingTimetable ? (
                                     <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-                                      <input type="text" placeholder="Subject Name" value={entry?.subjectName || ""} onChange={(e) => {
+                                      <input type="text" placeholder="Subject Name" value={primaryEntry?.subjectName || ""} onChange={(e) => {
                                         const newTt = [...timetable];
+                                        const entryIdx = newTt.findIndex(t => t.dayOrder === day && t.period === period);
                                         if (entryIdx !== -1) newTt[entryIdx].subjectName = e.target.value;
                                         else newTt.push({ dayOrder: day, period, subjectName: e.target.value, subjectCode: "", facultyName: "", roomNo: "", timeRange: `Period ${period}` });
                                         setTimetable(newTt);
                                       }} style={{ width: "100%", padding: "0.25rem", fontSize: "0.8rem", borderRadius: "4px", border: "1px solid var(--border-subtle)", backgroundColor: "var(--bg-input)", color: "var(--text-main)" }} />
-                                      <input type="text" placeholder="Faculty" value={entry?.facultyName || ""} onChange={(e) => {
+                                      <input type="text" placeholder="Faculty" value={primaryEntry?.facultyName || ""} onChange={(e) => {
                                         const newTt = [...timetable];
+                                        const entryIdx = newTt.findIndex(t => t.dayOrder === day && t.period === period);
                                         if (entryIdx !== -1) newTt[entryIdx].facultyName = e.target.value;
                                         setTimetable(newTt);
                                       }} style={{ width: "100%", padding: "0.25rem", fontSize: "0.8rem", borderRadius: "4px", border: "1px solid var(--border-subtle)", backgroundColor: "var(--bg-input)", color: "var(--text-main)" }} />
-                                      <input type="text" placeholder="Faculty VM No" value={entry?.vmsNo || ""} onChange={(e) => {
+                                      <input type="text" placeholder="Faculty VM No" value={primaryEntry?.vmsNo || ""} onChange={(e) => {
                                         const newTt = [...timetable];
+                                        const entryIdx = newTt.findIndex(t => t.dayOrder === day && t.period === period);
                                         if (entryIdx !== -1) newTt[entryIdx].vmsNo = e.target.value;
                                         setTimetable(newTt);
                                       }} style={{ width: "100%", padding: "0.25rem", fontSize: "0.8rem", borderRadius: "4px", border: "1px solid var(--border-subtle)", backgroundColor: "var(--bg-input)", color: "var(--text-main)" }} />
-                                      <input type="text" placeholder="Room No" value={entry?.roomNo || ""} onChange={(e) => {
+                                      <input type="text" placeholder="Room No" value={primaryEntry?.roomNo || ""} onChange={(e) => {
                                         const newTt = [...timetable];
+                                        const entryIdx = newTt.findIndex(t => t.dayOrder === day && t.period === period);
                                         if (entryIdx !== -1) newTt[entryIdx].roomNo = e.target.value;
                                         setTimetable(newTt);
                                       }} style={{ width: "100%", padding: "0.25rem", fontSize: "0.8rem", borderRadius: "4px", border: "1px solid var(--border-subtle)", backgroundColor: "var(--bg-input)", color: "var(--text-main)" }} />
                                     </div>
-                                  ) : (
-                                    <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
-                                      <strong style={{ color: "var(--sky-blue)", lineHeight: "1.2", minHeight: "1.2rem" }}>{entry?.subjectName || "-"}</strong>
-                                      <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", minHeight: "1rem" }}>{entry?.facultyName || "-"}</span>
-                                      <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", backgroundColor: "rgba(255,255,255,0.05)", padding: "0.1rem 0.3rem", borderRadius: "4px", alignSelf: "flex-start", minHeight: "1rem" }}>{entry?.roomNo || "-"}</span>
+                                  ) : matchingEntries.length > 0 ? (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+                                      {matchingEntries.map((entry, eIdx) => (
+                                        <div key={eIdx} style={{
+                                          display: "flex",
+                                          flexDirection: "column",
+                                          gap: "0.15rem",
+                                          padding: matchingEntries.length > 1 ? "0.3rem 0.4rem" : "0",
+                                          backgroundColor: matchingEntries.length > 1 ? "rgba(56, 189, 248, 0.06)" : "transparent",
+                                          borderRadius: "6px",
+                                          borderLeft: matchingEntries.length > 1 ? "2px solid var(--sky-blue)" : "none"
+                                        }}>
+                                          <strong style={{ color: "var(--sky-blue)", lineHeight: "1.2", fontSize: "0.85rem" }}>
+                                            {entry.subjectName || "-"}
+                                          </strong>
+                                          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                                            {timetableMode === "faculty" ? `Class: ${entry.classId || "-"}` : `Faculty: ${entry.facultyName || "-"}`}
+                                          </span>
+                                          <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", backgroundColor: "rgba(255,255,255,0.05)", padding: "0.1rem 0.3rem", borderRadius: "4px", alignSelf: "flex-start" }}>
+                                            {entry.roomNo || "LH-101"}
+                                          </span>
+                                        </div>
+                                      ))}
                                     </div>
+                                  ) : (
+                                    <div style={{ color: "var(--text-muted)", opacity: 0.4, fontSize: "0.85rem", textAlign: "center", padding: "0.5rem 0" }}>-</div>
                                   )}
                                 </td>
                               );
@@ -1001,13 +1341,14 @@ export default function AdminPage() {
               </div>
             )}
 
-            {/* EXCEL TIMETABLE UPLOAD */}
+            {/* PDF TIMETABLE UPLOAD */}
             {activeTab === "upload-timetable" && (
-              <AdminTimetableExcelUpload
+              <AdminTimetablePdfUpload
                 onUploadSuccess={() => {
                   fetch("/api/admin/audit-logs").then((r) => r.json()).then((res) => {
                     if (res.success) setAuditLogs(res.logs);
                   });
+                  fetchData();
                 }}
               />
             )}
@@ -1164,6 +1505,35 @@ export default function AdminPage() {
             {/* Quick Actions Footer */}
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", paddingTop: "1rem", borderTop: "1px solid var(--border-subtle)" }}>
               <button
+                onClick={() => openUserTimetable(selectedUser)}
+                style={{
+                  backgroundColor: "rgba(56, 189, 248, 0.15)",
+                  color: "var(--sky-blue)",
+                  border: "1px solid rgba(56, 189, 248, 0.3)",
+                  padding: "0.75rem",
+                  borderRadius: "8px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  fontSize: "0.85rem",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.5rem",
+                  transition: "all 0.2s ease"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "var(--royal-blue)";
+                  e.currentTarget.style.color = "#ffffff";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(56, 189, 248, 0.15)";
+                  e.currentTarget.style.color = "var(--sky-blue)";
+                }}
+              >
+                <Calendar size={16} /> View {selectedUser.name}&apos;s Timetable
+              </button>
+
+              <button
                 onClick={() => alert(`Password reset link generated for ${selectedUser.email}`)}
                 style={{
                   backgroundColor: "var(--bg-input)",
@@ -1199,116 +1569,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* SUBJECT HANDLING STAFF SIDE DRAWER / SLIDE-OVER PANEL */}
-      {selectedSubject && (
-        <div className="admin-drawer-container" onClick={() => setSelectedSubject(null)}>
-          <aside
-            onClick={(e) => e.stopPropagation()}
-            className="admin-drawer"
-            style={{ width: "420px" }}
-          >
-            <div>
-              {/* Drawer Header */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "1rem", borderBottom: "1px solid var(--border-subtle)", marginBottom: "1.5rem" }}>
-                <div>
-                  <span style={{ fontSize: "0.75rem", fontWeight: "800", color: "var(--sky-blue)", letterSpacing: "0.05em" }}>
-                    COURSE & FACULTY ALLOCATION
-                  </span>
-                  <h2 style={{ fontSize: "1.25rem", fontWeight: "700", margin: "0.2rem 0 0 0" }}>{selectedSubject.code}</h2>
-                </div>
-                <button onClick={() => setSelectedSubject(null)} style={{ backgroundColor: "transparent", border: "none", color: "var(--text-muted)", fontSize: "1.2rem", cursor: "pointer" }}>
-                  ✕
-                </button>
-              </div>
 
-              {/* Subject Info Card */}
-              <div style={{ backgroundColor: "var(--bg-page)", padding: "1.25rem", borderRadius: "12px", border: "1px solid var(--border-subtle)", marginBottom: "1.5rem" }}>
-                <h3 style={{ fontSize: "1.1rem", fontWeight: "700", color: "var(--text-main)", marginBottom: "0.5rem" }}>
-                  {selectedSubject.name}
-                </h3>
-                <div style={{ display: "flex", gap: "1rem", fontSize: "0.85rem", color: "var(--text-muted)" }}>
-                  <span>🏛️ Dept: <strong>{selectedSubject.departmentCode}</strong></span>
-                  <span>🎓 Semester: <strong>{selectedSubject.semester}</strong></span>
-                  <span>⭐ Credits: <strong>{selectedSubject.credits}</strong></span>
-                </div>
-              </div>
-
-              {/* Handling Persons / Assigned Staff Section */}
-              <h4 style={{ fontSize: "0.9rem", fontWeight: "700", color: "var(--sky-blue)", letterSpacing: "0.05em", marginBottom: "1rem" }}>
-                👨‍🏫 PERSONS HANDLING THIS COURSE ({selectedSubject.code})
-              </h4>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                {/* Dynamic faculty lookup from database records */}
-                {(() => {
-                  const staffList = selectedSubject.facultiesHandling || [];
-                  if (staffList.length === 0) {
-                    return <div style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>No faculty currently assigned in the timetable.</div>;
-                  }
-
-                  return staffList.map((st, idx) => (
-                    <div key={idx} style={{ backgroundColor: "var(--bg-page)", padding: "1rem", borderRadius: "10px", border: "1px solid var(--border-subtle)", display: "flex", gap: "0.75rem", alignItems: "center" }}>
-                      <div style={{
-                        width: "42px",
-                        height: "42px",
-                        borderRadius: "10px",
-                        background: idx === 0 ? "linear-gradient(135deg, #10b981 0%, #047857 100%)" : idx === 1 ? "linear-gradient(135deg, var(--royal-blue) 0%, var(--sky-blue) 100%)" : "linear-gradient(135deg, #f59e0b 0%, #b45309 100%)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "white",
-                        fontWeight: "700"
-                      }}>
-                        {st.replace(/^(Mr|Ms|Mrs|Dr)\.?\s*/i, "").charAt(0)}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <strong style={{ fontSize: "0.95rem" }}>{st}</strong>
-                          <span style={{ fontSize: "0.7rem", padding: "0.15rem 0.4rem", borderRadius: "4px", backgroundColor: idx === 0 ? "rgba(16,185,129,0.2)" : "rgba(56,189,248,0.2)", color: idx === 0 ? "#10b981" : "var(--sky-blue)", fontWeight: "700" }}>
-                            Faculty
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ));
-                })()}
-              </div>
-
-              {/* Classes Taking This Course */}
-              <h4 style={{ fontSize: "0.9rem", fontWeight: "700", color: "#a855f7", letterSpacing: "0.05em", marginBottom: "1rem", marginTop: "2rem" }}>
-                👥 CLASSES TAKING THIS COURSE
-              </h4>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
-                {selectedSubject.classesTaking && selectedSubject.classesTaking.length > 0 ? (
-                  selectedSubject.classesTaking.map((cls, idx) => (
-                    <span key={idx} style={{ padding: "0.5rem 1rem", backgroundColor: "rgba(168, 85, 247, 0.1)", color: "#a855f7", borderRadius: "8px", fontSize: "0.85rem", fontWeight: "700" }}>
-                      {cls}
-                    </span>
-                  ))
-                ) : (
-                  <div style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>No classes currently assigned in the timetable.</div>
-                )}
-              </div>
-            </div>
-
-            {/* Quick Actions */}
-            <div style={{ display: "flex", gap: "0.75rem", paddingTop: "1rem", borderTop: "1px solid var(--border-subtle)", marginTop: "1.5rem" }}>
-              <button
-                onClick={() => alert(`Re-allocation request sent for ${selectedSubject.code}`)}
-                style={{ flex: 1, backgroundColor: "var(--bg-input)", color: "var(--text-main)", border: "1px solid var(--border-subtle)", padding: "0.75rem", borderRadius: "8px", fontWeight: "600", cursor: "pointer", fontSize: "0.85rem" }}
-              >
-                Reassign Staff
-              </button>
-              <button
-                onClick={() => setSelectedSubject(null)}
-                style={{ backgroundColor: "var(--royal-blue)", color: "white", border: "none", padding: "0.75rem 1.25rem", borderRadius: "8px", fontWeight: "600", cursor: "pointer", fontSize: "0.85rem" }}
-              >
-                Done
-              </button>
-            </div>
-          </aside>
-        </div>
-      )}
 
       {/* MODALS */}
       {showUserModal && (
@@ -1404,37 +1665,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      {showSubjectModal && (
-        <div className="admin-modal-overlay">
-          <div className="admin-modal">
-            <h3 style={{ fontSize: "1.25rem", marginBottom: "1rem" }}>Add New Subject to Catalog</h3>
-            <form onSubmit={handleCreateSubject} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <input type="text" placeholder="Subject Code (e.g. CS8591)" value={newSubCode} onChange={(e) => setNewSubCode(e.target.value)} required className="premium-input" />
-              <input type="text" placeholder="Subject Title" value={newSubName} onChange={(e) => setNewSubName(e.target.value)} required className="premium-input" />
-              <div style={{ display: "flex", gap: "0.75rem" }}>
-                <input type="number" placeholder="Credits" value={newSubCredits} onChange={(e) => setNewSubCredits(e.target.value)} required className="premium-input" />
-                <input type="number" placeholder="Semester" value={newSubSem} onChange={(e) => setNewSubSem(e.target.value)} required className="premium-input" />
-              </div>
-              <div>
-                <label style={{ display: "block", fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "0.3rem" }}>Department</label>
-                <select value={newSubDept} onChange={(e) => setNewSubDept(e.target.value)} required className="premium-input" style={{ width: "100%" }}>
-                  {depts.length > 0 ? (
-                    depts.map((d) => (
-                      <option key={d.code} value={d.code}>{d.code} - {d.name}</option>
-                    ))
-                  ) : (
-                    <option value="CSE">CSE</option>
-                  )}
-                </select>
-              </div>
-              <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem" }}>
-                <button type="submit" className="btn-royal" style={{ flex: 1 }}>Save Subject</button>
-                <button type="button" onClick={() => setShowSubjectModal(false)} style={{ backgroundColor: "rgba(255,255,255,0.1)", color: "var(--text-main)", padding: "0.75rem 1rem", borderRadius: "8px", border: "none" }}>Cancel</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+
 
       {showNoticeModal && (
         <div className="admin-modal-overlay">
@@ -1453,6 +1684,260 @@ export default function AdminPage() {
                 <button type="button" onClick={() => setShowNoticeModal(false)} style={{ backgroundColor: "rgba(255,255,255,0.1)", color: "var(--text-main)", padding: "0.75rem 1rem", borderRadius: "8px", border: "none" }}>Cancel</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* USER TIMETABLE MODAL */}
+      {userTimetableModalUser && (
+        <div 
+          className="admin-modal-overlay" 
+          onClick={() => setUserTimetableModalUser(null)}
+          style={{ zIndex: 1100 }}
+        >
+          <div 
+            className="admin-modal" 
+            onClick={(e) => e.stopPropagation()} 
+            style={{ 
+              maxWidth: "1200px", 
+              width: "95vw", 
+              maxHeight: "92vh", 
+              overflowY: "auto", 
+              padding: "1.75rem",
+              display: "flex",
+              flexDirection: "column",
+              gap: "1.25rem"
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", flexWrap: "wrap", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "1rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
+                <div style={{
+                  width: "48px",
+                  height: "48px",
+                  borderRadius: "12px",
+                  backgroundColor: userTimetableModalUser.role === "STUDENT" ? "rgba(29, 78, 216, 0.15)" : userTimetableModalUser.role === "ADMIN" ? "rgba(239, 68, 68, 0.15)" : "rgba(16, 185, 129, 0.15)",
+                  color: userTimetableModalUser.role === "STUDENT" ? "var(--royal-blue)" : userTimetableModalUser.role === "ADMIN" ? "#ef4444" : "#10b981",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: "800",
+                  fontSize: "1.25rem"
+                }}>
+                  <Calendar size={24} />
+                </div>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <h2 style={{ fontSize: "1.3rem", fontWeight: "800", margin: 0, color: "var(--text-main)" }}>
+                      {userTimetableModalUser.name}
+                    </h2>
+                    <span style={{ 
+                      padding: "0.2rem 0.6rem", 
+                      borderRadius: "4px", 
+                      fontSize: "0.75rem", 
+                      fontWeight: "700", 
+                      backgroundColor: userTimetableModalUser.role === "ADMIN" ? "rgba(239,68,68,0.15)" : userTimetableModalUser.role === "HOD" ? "rgba(245,158,11,0.15)" : userTimetableModalUser.role === "FACULTY" ? "rgba(16,185,129,0.15)" : "rgba(29,78,216,0.15)", 
+                      color: userTimetableModalUser.role === "ADMIN" ? "#ef4444" : userTimetableModalUser.role === "HOD" ? "#d97706" : userTimetableModalUser.role === "FACULTY" ? "#059669" : "var(--royal-blue)" 
+                    }}>
+                      {userTimetableModalUser.role === "FACULTY" ? "TEACHER" : userTimetableModalUser.role}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginTop: "0.2rem" }}>
+                    {userTimetableModalUser.email}
+                    {userTimetableModalUser.vmNo ? ` • VM: ${userTimetableModalUser.vmNo}` : ""}
+                    {userTimetableModalUser.studentProfile?.rollNumber ? ` • Roll: ${userTimetableModalUser.studentProfile.rollNumber}` : ""}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                {userTimetableClassId && (
+                  <button
+                    onClick={() => jumpToTimetableTab("class", modalSelectedClass || userTimetableClassId)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.4rem",
+                      padding: "0.45rem 0.85rem",
+                      borderRadius: "8px",
+                      backgroundColor: "rgba(56, 189, 248, 0.15)",
+                      color: "var(--sky-blue)",
+                      border: "1px solid rgba(56, 189, 248, 0.3)",
+                      fontSize: "0.8rem",
+                      fontWeight: "600",
+                      cursor: "pointer"
+                    }}
+                  >
+                    <ArrowRight size={14} /> Open in Timetable Manager
+                  </button>
+                )}
+                {userTimetableFacultyName && (
+                  <button
+                    onClick={() => jumpToTimetableTab("faculty", modalSelectedFaculty || userTimetableFacultyName)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.4rem",
+                      padding: "0.45rem 0.85rem",
+                      borderRadius: "8px",
+                      backgroundColor: "rgba(56, 189, 248, 0.15)",
+                      color: "var(--sky-blue)",
+                      border: "1px solid rgba(56, 189, 248, 0.3)",
+                      fontSize: "0.8rem",
+                      fontWeight: "600",
+                      cursor: "pointer"
+                    }}
+                  >
+                    <ArrowRight size={14} /> Open in Timetable Manager
+                  </button>
+                )}
+                <button
+                  onClick={() => setUserTimetableModalUser(null)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                    padding: "0.4rem",
+                    borderRadius: "6px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center"
+                  }}
+                  title="Close Timetable"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Class / Faculty switcher bar */}
+            {userTimetableModalUser.role === "STUDENT" && (
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap", backgroundColor: "var(--bg-card-header)", padding: "0.75rem 1rem", borderRadius: "10px", border: "1px solid var(--border-subtle)" }}>
+                <span style={{ fontSize: "0.85rem", fontWeight: "600", color: "var(--text-main)" }}>
+                  Current Assigned Class: <strong style={{ color: "var(--sky-blue)" }}>{userTimetableClassId}</strong>
+                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginLeft: "auto" }}>
+                  <label style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>View Other Class:</label>
+                  <select 
+                    value={modalSelectedClass} 
+                    onChange={(e) => handleModalClassChange(e.target.value)}
+                    className="premium-input"
+                    style={{ padding: "0.3rem 0.6rem", fontSize: "0.8rem", width: "auto" }}
+                  >
+                    {["II-CSE-A", "II-CSE-B", "II-CSE-C", "III-CSE-A", "III-CSE-B", "III-CSE-C", "IV-CSE-A", "IV-CSE-B", "IV-CSE-C"].map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {(userTimetableModalUser.role === "FACULTY" || userTimetableModalUser.role === "HOD") && (
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap", backgroundColor: "var(--bg-card-header)", padding: "0.75rem 1rem", borderRadius: "10px", border: "1px solid var(--border-subtle)" }}>
+                <span style={{ fontSize: "0.85rem", fontWeight: "600", color: "var(--text-main)" }}>
+                  Faculty Schedule: <strong style={{ color: "var(--sky-blue)" }}>{userTimetableFacultyName}</strong>
+                </span>
+                {availableFaculty.length > 0 && (
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginLeft: "auto" }}>
+                    <label style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Switch Faculty:</label>
+                    <select
+                      value={modalSelectedFaculty}
+                      onChange={(e) => handleModalFacultyChange(e.target.value)}
+                      className="premium-input"
+                      style={{ padding: "0.3rem 0.6rem", fontSize: "0.8rem", width: "auto" }}
+                    >
+                      {availableFaculty.map((f) => (
+                        <option key={f.name} value={f.name}>{f.name} {f.vmsNo ? `(${f.vmsNo})` : ""}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Content / Loading / Error */}
+            {loadingUserTimetable ? (
+              <div style={{ padding: "3rem", textAlign: "center", color: "var(--text-muted)" }}>
+                <div style={{ fontSize: "1.1rem", fontWeight: "600", color: "var(--sky-blue)", marginBottom: "0.5rem" }}>
+                  Loading Timetable Schedule...
+                </div>
+                <p style={{ fontSize: "0.85rem", margin: 0 }}>Querying slots from college master timetable</p>
+              </div>
+            ) : userTimetableError === "ADMIN_ROLE" ? (
+              <div style={{ padding: "2.5rem 1.5rem", textAlign: "center", backgroundColor: "rgba(239, 68, 68, 0.05)", borderRadius: "12px", border: "1px solid rgba(239, 68, 68, 0.2)" }}>
+                <Shield size={36} color="#ef4444" style={{ margin: "0 auto 1rem auto" }} />
+                <h3 style={{ fontSize: "1.1rem", fontWeight: "700", margin: "0 0 0.5rem 0", color: "var(--text-main)" }}>
+                  Administrator Account
+                </h3>
+                <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", maxWidth: "450px", margin: "0 auto 1.5rem auto" }}>
+                  Admin accounts do not have an individual class or faculty teaching schedule. You can view, verify, and modify all institution schedules directly in the Timetables tab.
+                </p>
+                <button
+                  onClick={() => {
+                    setUserTimetableModalUser(null);
+                    setActiveTab("timetable");
+                  }}
+                  className="btn-royal"
+                >
+                  Go to Timetable Manager
+                </button>
+              </div>
+            ) : userTimetableMap && userTimetableRaw.length > 0 ? (
+              <div style={{ marginTop: "-1rem" }}>
+                <OverallTimetable
+                  fullTimetable={userTimetableMap}
+                  currentDayOrder={["I", "II", "III", "IV", "V"][parseInt(currentDayOrderIndex, 10) || 0] || "I"}
+                  title={`${userTimetableModalUser.name}'s Timetable`}
+                  subtitle={userTimetableModalUser.role === "STUDENT" ? `Class: ${userTimetableClassId} • Total ${userTimetableRaw.length} Slots` : `Teaching Schedule: ${userTimetableFacultyName} • Total ${userTimetableRaw.length} Slots`}
+                  mode={userTimetableModalUser.role === "STUDENT" ? "student" : "teacher"}
+                  classId={userTimetableClassId}
+                  facultyName={userTimetableFacultyName}
+                  userDetails={{
+                    name: userTimetableModalUser.name,
+                    vmNo: userTimetableModalUser.vmNo || userTimetableModalUser.facultyProfile?.vmNo,
+                    rollNumber: userTimetableModalUser.studentProfile?.rollNumber || userTimetableModalUser.vmNo,
+                    department: userTimetableModalUser.studentProfile?.department || userTimetableModalUser.facultyProfile?.department,
+                    designation: userTimetableModalUser.facultyProfile?.designation || (userTimetableModalUser.role === "STUDENT" ? "Student" : "Faculty"),
+                    classId: userTimetableClassId,
+                    semester: userTimetableModalUser.studentProfile?.semester,
+                    section: userTimetableModalUser.studentProfile?.section,
+                  }}
+                />
+              </div>
+            ) : (
+              <div style={{ padding: "2.5rem 1.5rem", textAlign: "center", backgroundColor: "var(--bg-card-header)", borderRadius: "12px", border: "1px solid var(--border-subtle)" }}>
+                <Calendar size={36} color="var(--sky-blue)" style={{ margin: "0 auto 1rem auto" }} />
+                <h3 style={{ fontSize: "1.1rem", fontWeight: "700", margin: "0 0 0.5rem 0", color: "var(--text-main)" }}>
+                  No Timetable Slots Found
+                </h3>
+                <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", maxWidth: "480px", margin: "0 auto 1.5rem auto" }}>
+                  {userTimetableError || `No timetable slots were recorded in the database for ${userTimetableClassId || userTimetableFacultyName || userTimetableModalUser.name}.`}
+                </p>
+                <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}>
+                  <button
+                    onClick={() => {
+                      setUserTimetableModalUser(null);
+                      setActiveTab("upload-timetable");
+                    }}
+                    className="btn-sky"
+                    style={{ fontSize: "0.85rem" }}
+                  >
+                    Upload Timetable PDF
+                  </button>
+                  <button
+                    onClick={() => {
+                      setUserTimetableModalUser(null);
+                      setActiveTab("timetable");
+                    }}
+                    className="btn-royal"
+                    style={{ fontSize: "0.85rem" }}
+                  >
+                    Manage Timetables
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

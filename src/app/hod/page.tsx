@@ -342,12 +342,16 @@ export default function HodDashboardPage() {
           {/* Quick Actions */}
           <div className="student-card premium-card">
             <h3 style={{ fontSize: "1rem", fontWeight: "700", color: "var(--text-main)", margin: "0 0 1rem 0" }}>Quick Actions</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-              <Link href="/hod/faculty" style={{ backgroundColor: "rgba(56, 189, 248, 0.1)", color: "var(--sky-blue)", padding: "1rem", borderRadius: "10px", textAlign: "center", textDecoration: "none", fontWeight: "600", fontSize: "0.85rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem", transition: "all 0.2s" }} className="hover-lift">
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: "0.75rem" }}>
+              <Link href="/hod/courses" style={{ backgroundColor: "rgba(16, 185, 129, 0.1)", color: "#10b981", padding: "1rem 0.5rem", borderRadius: "10px", textAlign: "center", textDecoration: "none", fontWeight: "600", fontSize: "0.85rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem", transition: "all 0.2s" }} className="hover-lift">
+                <BookOpen size={20} />
+                Course Catalog
+              </Link>
+              <Link href="/hod/faculty" style={{ backgroundColor: "rgba(56, 189, 248, 0.1)", color: "var(--sky-blue)", padding: "1rem 0.5rem", borderRadius: "10px", textAlign: "center", textDecoration: "none", fontWeight: "600", fontSize: "0.85rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem", transition: "all 0.2s" }} className="hover-lift">
                 <Users size={20} />
                 Manage Staff
               </Link>
-              <Link href="/hod/department" style={{ backgroundColor: "rgba(168, 85, 247, 0.1)", color: "#a855f7", padding: "1rem", borderRadius: "10px", textAlign: "center", textDecoration: "none", fontWeight: "600", fontSize: "0.85rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem", transition: "all 0.2s" }} className="hover-lift">
+              <Link href="/hod/department" style={{ backgroundColor: "rgba(168, 85, 247, 0.1)", color: "#a855f7", padding: "1rem 0.5rem", borderRadius: "10px", textAlign: "center", textDecoration: "none", fontWeight: "600", fontSize: "0.85rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem", transition: "all 0.2s" }} className="hover-lift">
                 <Activity size={20} />
                 Dept Stats
               </Link>
@@ -480,6 +484,12 @@ export default function HodDashboardPage() {
         subtitle={`HOD Teaching & Executive Schedule: ${data?.hod?.name || "HOD"} (${data?.hod?.vmNo || "N/A"}) • ${data?.hod?.department || "CSE"}`}
         mode="hod"
         facultyName={data?.hod?.name}
+        userDetails={{
+          name: data?.hod?.name,
+          vmNo: data?.hod?.vmNo,
+          department: data?.hod?.department,
+          designation: data?.hod?.designation || "Head of Department (HOD)",
+        }}
       />
 
       <style dangerouslySetInnerHTML={{

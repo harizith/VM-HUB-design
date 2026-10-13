@@ -21,6 +21,8 @@ export async function GET() {
             department: true,
             semester: true,
             batch: true,
+            year: true,
+            section: true,
           },
         },
         facultyProfile: {

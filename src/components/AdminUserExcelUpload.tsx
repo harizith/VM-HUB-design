@@ -14,8 +14,12 @@ import {
   Users,
   ShieldCheck,
   GraduationCap,
-  Briefcase
+  Briefcase,
+  Layers,
+  ArrowRight
 } from "lucide-react";
+
+export type UserOnboardMode = "STUDENT" | "FACULTY" | "HOD" | "ALL";
 
 interface UserPreviewRow {
   name: string;
@@ -33,6 +37,9 @@ interface UserPreviewRow {
 }
 
 export default function AdminUserExcelUpload({ onUploadSuccess }: { onUploadSuccess?: () => void }) {
+  // Mode selection state
+  const [selectedMode, setSelectedMode] = useState<UserOnboardMode>("STUDENT");
+
   const [file, setFile] = useState<File | null>(null);
   const [parsedRows, setParsedRows] = useState<UserPreviewRow[]>([]);
   const [parsingError, setParsingError] = useState<string | null>(null);
@@ -46,147 +53,264 @@ export default function AdminUserExcelUpload({ onUploadSuccess }: { onUploadSucc
   const [showFormatGuide, setShowFormatGuide] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Sample data template definition covering Students, Faculty, and HOD profiles
-  const SAMPLE_ROWS = [
-    {
-      "Full Name": "Aarav Sharma",
-      "Email Address": "aarav.cse@veltech.edu.in",
-      "User Role": "STUDENT",
-      "VM No": "17433",
-      "Password": "Welcome@123",
-      "Department": "CSE",
-      "Roll Number": "23CS101",
-      "Year": "II",
-      "Section": "A",
-      "Semester": 3,
-      "Batch": "2023-2027",
-      "Designation": ""
+  // Mode Specific Column Configurations
+  const MODE_COLUMNS: Record<UserOnboardMode, {
+    title: string;
+    description: string;
+    badgeColor: string;
+    badgeBg: string;
+    icon: any;
+    sampleRows: any[];
+    columnsGuide: { col: string; req: string; sample: string; desc: string }[];
+  }> = {
+    STUDENT: {
+      title: "Student Onboarding Mode",
+      description: "Batch onboarding for students with Roll Number, Semester, Section, Year, and Department.",
+      badgeColor: "#38bdf8",
+      badgeBg: "rgba(56, 189, 248, 0.15)",
+      icon: GraduationCap,
+      sampleRows: [
+        {
+          "Full Name": "Aarav Sharma",
+          "Email Address": "aarav.cse@veltech.edu.in",
+          "VM No": "17433",
+          "Roll Number": "23CS101",
+          "Department": "CSE",
+          "Year": "II",
+          "Section": "A",
+          "Semester": 3,
+          "Batch": "2023-2027",
+          "Password": "Welcome@123"
+        },
+        {
+          "Full Name": "Sneha Patel",
+          "Email Address": "sneha.cse@veltech.edu.in",
+          "VM No": "17434",
+          "Roll Number": "23CS102",
+          "Department": "CSE",
+          "Year": "II",
+          "Section": "A",
+          "Semester": 3,
+          "Batch": "2023-2027",
+          "Password": "Welcome@123"
+        }
+      ],
+      columnsGuide: [
+        { col: "Full Name", req: "Required", sample: "Aarav Sharma", desc: "User.name" },
+        { col: "Email Address", req: "Required", sample: "aarav@veltech.edu.in", desc: "User.email (Primary Login Key)" },
+        { col: "VM No", req: "Required", sample: "17433", desc: "User.vmNo & Profile Key" },
+        { col: "Roll Number", req: "Optional", sample: "23CS101", desc: "StudentProfile.rollNumber (defaults to VM No)" },
+        { col: "Department", req: "Required", sample: "CSE, ECE, AIDS, MECH", desc: "StudentProfile.department" },
+        { col: "Semester", req: "Required", sample: "1 to 8", desc: "StudentProfile.semester" },
+        { col: "Year", req: "Optional", sample: "I, II, III, IV", desc: "StudentProfile.year" },
+        { col: "Section", req: "Optional", sample: "A, B, C", desc: "StudentProfile.section" },
+        { col: "Batch", req: "Optional", sample: "2023-2027", desc: "StudentProfile.batch" },
+        { col: "Password", req: "Optional", sample: "Welcome@123", desc: "Encrypted password (default Welcome@123)" }
+      ]
     },
-    {
-      "Full Name": "Sneha Patel",
-      "Email Address": "sneha.cse@veltech.edu.in",
-      "User Role": "STUDENT",
-      "VM No": "17434",
-      "Password": "Welcome@123",
-      "Department": "CSE",
-      "Roll Number": "23CS102",
-      "Year": "II",
-      "Section": "A",
-      "Semester": 3,
-      "Batch": "2023-2027",
-      "Designation": ""
+
+    FACULTY: {
+      title: "Faculty & Staff Onboarding Mode",
+      description: "Batch onboarding for teaching staff with VMS Staff ID, Designation, and Department.",
+      badgeColor: "#10b981",
+      badgeBg: "rgba(16, 185, 129, 0.15)",
+      icon: Briefcase,
+      sampleRows: [
+        {
+          "Full Name": "Dr. E. Mercy Beulah",
+          "Email Address": "mercybeulah@veltech.edu.in",
+          "VMS No": "2103",
+          "Department": "CSE",
+          "Designation": "Assistant Professor",
+          "Password": "Welcome@123"
+        },
+        {
+          "Full Name": "Mr. P. Sathish Kumar",
+          "Email Address": "sathishkumar@veltech.edu.in",
+          "VMS No": "2088",
+          "Department": "CSE",
+          "Designation": "Assistant Professor",
+          "Password": "Welcome@123"
+        }
+      ],
+      columnsGuide: [
+        { col: "Full Name", req: "Required", sample: "Dr. E. Mercy Beulah", desc: "User.name" },
+        { col: "Email Address", req: "Required", sample: "mercy@veltech.edu.in", desc: "User.email (Primary Login Key)" },
+        { col: "VMS No / VM No", req: "Required", sample: "2103", desc: "User.vmNo & FacultyProfile.vmNo" },
+        { col: "Department", req: "Required", sample: "CSE, ECE, AIDS, MECH", desc: "FacultyProfile.department" },
+        { col: "Designation", req: "Recommended", sample: "Assistant Professor, Professor", desc: "FacultyProfile.designation" },
+        { col: "Password", req: "Optional", sample: "Welcome@123", desc: "Encrypted password (default Welcome@123)" }
+      ]
     },
-    {
-      "Full Name": "Dr. R. Saravanan",
-      "Email Address": "saravanan.r@veltech.edu.in",
-      "User Role": "HOD",
-      "VM No": "1944",
-      "Password": "Welcome@123",
-      "Department": "CSE",
-      "Roll Number": "",
-      "Year": "",
-      "Section": "",
-      "Semester": "",
-      "Batch": "",
-      "Designation": "Head of Department"
+
+    HOD: {
+      title: "Head of Department (HOD) Mode",
+      description: "Onboarding department heads with executive management authority over departments.",
+      badgeColor: "#a855f7",
+      badgeBg: "rgba(168, 85, 247, 0.15)",
+      icon: ShieldCheck,
+      sampleRows: [
+        {
+          "Full Name": "Dr. R. Saravanan",
+          "Email Address": "saravanan.r@veltech.edu.in",
+          "MTS / VMS No": "1944",
+          "Department": "CSE",
+          "Designation": "Professor & Head",
+          "Password": "Welcome@123"
+        }
+      ],
+      columnsGuide: [
+        { col: "Full Name", req: "Required", sample: "Dr. R. Saravanan", desc: "User.name" },
+        { col: "Email Address", req: "Required", sample: "saravanan@veltech.edu.in", desc: "User.email (Primary Login Key)" },
+        { col: "MTS / VMS No", req: "Required", sample: "1944", desc: "User.vmNo & HodProfile.vmNo" },
+        { col: "Department", req: "Required", sample: "CSE", desc: "HodProfile.department jurisdiction" },
+        { col: "Designation", req: "Recommended", sample: "Professor & Head", desc: "HodProfile.designation" },
+        { col: "Password", req: "Optional", sample: "Welcome@123", desc: "Encrypted password (default Welcome@123)" }
+      ]
     },
-    {
-      "Full Name": "Ms. V. Vijayashanthi",
-      "Email Address": "vijayashanthi@veltech.edu.in",
-      "User Role": "FACULTY",
-      "VM No": "2045",
-      "Password": "Welcome@123",
-      "Department": "CSE",
-      "Roll Number": "",
-      "Year": "",
-      "Section": "",
-      "Semester": "",
-      "Batch": "",
-      "Designation": "Assistant Professor"
+
+    ALL: {
+      title: "Mixed Multi-Role Mode",
+      description: "Omni-role template containing a 'User Role' column (STUDENT, FACULTY, HOD, ADMIN).",
+      badgeColor: "#f59e0b",
+      badgeBg: "rgba(245, 158, 11, 0.15)",
+      icon: Users,
+      sampleRows: [
+        {
+          "Full Name": "Aarav Sharma",
+          "Email Address": "aarav.cse@veltech.edu.in",
+          "User Role": "STUDENT",
+          "VM No": "17433",
+          "Department": "CSE",
+          "Semester": 3,
+          "Section": "A",
+          "Designation": "",
+          "Password": "Welcome@123"
+        },
+        {
+          "Full Name": "Dr. R. Saravanan",
+          "Email Address": "saravanan.r@veltech.edu.in",
+          "User Role": "HOD",
+          "VM No": "1944",
+          "Department": "CSE",
+          "Semester": "",
+          "Section": "",
+          "Designation": "Professor & Head",
+          "Password": "Welcome@123"
+        }
+      ],
+      columnsGuide: [
+        { col: "Full Name", req: "Required", sample: "Aarav Sharma", desc: "User.name" },
+        { col: "Email Address", req: "Required", sample: "aarav@veltech.edu.in", desc: "User.email" },
+        { col: "User Role", req: "Required", sample: "STUDENT, FACULTY, HOD, ADMIN", desc: "User.role selector" },
+        { col: "VM No", req: "Required", sample: "17433, 1944", desc: "User.vmNo" },
+        { col: "Department", req: "Required", sample: "CSE, ECE, AIDS", desc: "Linked Department" },
+        { col: "Semester", req: "Students", sample: "3", desc: "StudentProfile.semester" },
+        { col: "Section", req: "Students", sample: "A", desc: "StudentProfile.section" },
+        { col: "Designation", req: "Faculty/HOD", sample: "Assistant Professor", desc: "Staff designation" },
+        { col: "Password", req: "Optional", sample: "Welcome@123", desc: "Default Welcome@123" }
+      ]
     }
-  ];
+  };
+
+  const currentModeConfig = MODE_COLUMNS[selectedMode];
 
   const handleDownloadTemplate = (format: "xlsx" | "csv") => {
-    const ws = XLSX.utils.json_to_sheet(SAMPLE_ROWS);
+    const ws = XLSX.utils.json_to_sheet(currentModeConfig.sampleRows);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Users_Template");
+    XLSX.utils.book_append_sheet(wb, ws, `${selectedMode}_Template`);
+    const fileName = `${selectedMode}_Onboarding_Template.${format}`;
     if (format === "xlsx") {
-      XLSX.writeFile(wb, "Bulk_User_Onboarding_Template.xlsx");
+      XLSX.writeFile(wb, fileName);
     } else {
-      XLSX.writeFile(wb, "Bulk_User_Onboarding_Template.csv");
+      XLSX.writeFile(wb, fileName);
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      processFile(selectedFile);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      processFile(e.dataTransfer.files[0]);
-    }
-  };
-
-  const processFile = (f: File) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
     setFile(f);
     setParsingError(null);
     setUploadResult(null);
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = (evt) => {
       try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: "array" });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const json = XLSX.utils.sheet_to_json<any>(worksheet);
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: "binary" });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const rawJson: any[] = XLSX.utils.sheet_to_json(ws);
 
-        if (!json || json.length === 0) {
-          setParsingError("The selected file is empty or could not be parsed.");
+        if (!rawJson || rawJson.length === 0) {
+          setParsingError("Uploaded sheet contains no data rows.");
           setParsedRows([]);
           return;
         }
 
-        const mapped: UserPreviewRow[] = json.map((r: any) => {
-          const rawRole = (r["User Role"] || r["Role"] || r.role || "STUDENT").toString().trim().toUpperCase();
-          let role: "STUDENT" | "FACULTY" | "HOD" | "ADMIN" = "STUDENT";
-          if (rawRole.includes("HOD") || rawRole.includes("HEAD")) role = "HOD";
-          else if (rawRole.includes("FACULTY") || rawRole.includes("TEACHER") || rawRole.includes("STAFF") || rawRole.includes("PROF")) role = "FACULTY";
-          else if (rawRole.includes("ADMIN")) role = "ADMIN";
+        const mapped: UserPreviewRow[] = rawJson.map((r: any) => {
+          // Normalize role based on selectedMode or explicit column
+          let role: "STUDENT" | "FACULTY" | "HOD" | "ADMIN" = selectedMode === "ALL" ? "STUDENT" : selectedMode;
+          if (r["User Role"] || r["Role"] || r["role"]) {
+            const rawRole = (r["User Role"] || r["Role"] || r["role"]).toString().toUpperCase();
+            if (rawRole.includes("HOD") || rawRole.includes("HEAD")) role = "HOD";
+            else if (rawRole.includes("FACULTY") || rawRole.includes("TEACHER") || rawRole.includes("PROF")) role = "FACULTY";
+            else if (rawRole.includes("ADMIN")) role = "ADMIN";
+            else role = "STUDENT";
+          }
+
+          const rawEmail = r["Email Address"] || r["Email"] || r["Email ID"] || r.email || "";
+          const email = String(rawEmail).toLowerCase().trim();
+          const name = (r["Full Name"] || r["Name"] || r["User Name"] || r.name || "").toString().trim();
+          const vmNo = (r["VM No"] || r["VMNo"] || r["VMS No"] || r["MTS No"] || r["MTS / VMS No"] || r.vmNo || r.vmno || "").toString().trim();
+          const rollNumber = (r["Roll Number"] || r["Roll No"] || r.rollNumber || vmNo).toString().trim();
+          const department = (r["Department"] || r["Dept"] || r.department || "CSE").toString().toUpperCase().trim();
+          const password = (r["Password"] || r.password || "Welcome@123").toString().trim();
+          const year = (r["Year"] || r.year || "I").toString().trim();
+          const section = (r["Section"] || r["Sec"] || r.section || "A").toString().trim();
+          const semester = parseInt(r["Semester"] || r.semester) || 1;
+          const batch = (r["Batch"] || r.batch || "2023-2027").toString().trim();
+          const designation = (r["Designation"] || r.designation || (role === "HOD" ? "Head of Department" : "Assistant Professor")).toString().trim();
 
           return {
-            name: (r["Full Name"] || r["Name"] || r.name || "").toString().trim(),
-            email: (r["Email Address"] || r["Email"] || r["Email ID"] || r.email || "").toString().toLowerCase().trim(),
+            name,
+            email,
             role,
-            vmNo: (r["VM No"] || r["VMNo"] || r.vmNo || r.vmno || "").toString().trim(),
-            password: (r["Password"] || r.password || "Welcome@123").toString().trim(),
-            department: (r["Department"] || r["Dept"] || r.department || r.dept || "CSE").toString().toUpperCase().trim(),
-            rollNumber: (r["Roll Number"] || r["Roll No"] || r.rollNumber || r.rollNo || "").toString().trim(),
-            year: (r["Year"] || r.year || "I").toString().trim(),
-            section: (r["Section"] || r.section || "A").toString().trim(),
-            semester: parseInt(r["Semester"] || r.semester || "1", 10) || 1,
-            batch: (r["Batch"] || r.batch || "2023-2027").toString().trim(),
-            designation: (r["Designation"] || r.designation || (role === "HOD" ? "Head of Department" : "Assistant Professor")).toString().trim(),
+            vmNo,
+            rollNumber,
+            department,
+            password,
+            year,
+            section,
+            semester,
+            batch,
+            designation
           };
-        }).filter(r => r.name && r.email);
+        });
 
-        if (mapped.length === 0) {
-          setParsingError("No valid user records with Name and Email found in the sheet.");
-          setParsedRows([]);
-        } else {
-          setParsedRows(mapped);
+        // Validation filter
+        const invalid = mapped.filter(u => !u.email || !u.name);
+        if (invalid.length > 0) {
+          setParsingError(`Found ${invalid.length} row(s) missing required Email or Full Name.`);
         }
+
+        setParsedRows(mapped);
       } catch (err: any) {
-        console.error("User Excel parse error:", err);
-        setParsingError(`Failed to read file: ${err.message}`);
+        setParsingError(`Failed to parse file: ${err.message}`);
         setParsedRows([]);
       }
     };
-    reader.readAsArrayBuffer(f);
+    reader.readAsBinaryString(f);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const f = e.dataTransfer.files[0];
+      const fakeEvent = { target: { files: [f] } } as any;
+      handleFileChange(fakeEvent);
+    }
   };
 
   const handleUploadToDb = async () => {
@@ -198,24 +322,22 @@ export default function AdminUserExcelUpload({ onUploadSuccess }: { onUploadSucc
       const res = await fetch("/api/admin/users/import-excel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          users: parsedRows,
-        }),
+        body: JSON.stringify({ users: parsedRows }),
       });
 
       const data = await res.json();
       if (data.success) {
         setUploadResult({
           success: true,
-          created: data.createdCount,
-          updated: data.updatedCount,
-          message: `Successfully processed ${parsedRows.length} users! Created: ${data.createdCount}, Updated: ${data.updatedCount}`,
+          created: data.created,
+          updated: data.updated,
+          message: `Onboarded ${data.created} new users and updated ${data.updated} existing accounts successfully!`,
         });
         if (onUploadSuccess) onUploadSuccess();
       } else {
         setUploadResult({
           success: false,
-          message: data.error || "Failed to commit user profiles to database.",
+          message: data.error || "Failed to commit user accounts to database.",
         });
       }
     } catch (e: any) {
@@ -239,24 +361,23 @@ export default function AdminUserExcelUpload({ onUploadSuccess }: { onUploadSucc
   const studentCount = parsedRows.filter(r => r.role === "STUDENT").length;
   const facultyCount = parsedRows.filter(r => r.role === "FACULTY").length;
   const hodCount = parsedRows.filter(r => r.role === "HOD").length;
-  const adminCount = parsedRows.filter(r => r.role === "ADMIN").length;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-      {/* Top Header Card */}
-      <div className="student-card premium-card" style={{ padding: "1.75rem", borderLeft: "4px solid #22c55e" }}>
+      {/* Top Banner Card */}
+      <div className="student-card premium-card" style={{ padding: "1.75rem", borderLeft: "4px solid #10b981" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.4rem" }}>
-              <span style={{ backgroundColor: "rgba(34, 197, 94, 0.15)", color: "#22c55e", padding: "0.2rem 0.6rem", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "700" }}>
-                BULK ONBOARDING & PROFILE CUSTOMIZER
+              <span style={{ backgroundColor: currentModeConfig.badgeBg, color: currentModeConfig.badgeColor, padding: "0.2rem 0.6rem", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "700" }}>
+                MODE: {selectedMode}
               </span>
             </div>
             <h2 style={{ fontSize: "1.5rem", fontWeight: "800", margin: 0, color: "var(--text-main)" }}>
-              Upload User Data & Customized Profiles (.xlsx / .csv)
+              {currentModeConfig.title}
             </h2>
             <p style={{ margin: "0.4rem 0 0 0", color: "var(--text-muted)", fontSize: "0.875rem" }}>
-              Batch creates user logins (encrypted passwords) and automatically configures role-tailored profiles for Students, Faculty, and HODs.
+              {currentModeConfig.description} Select user mode below to dynamically configure column templates and validation rules.
             </p>
           </div>
 
@@ -267,17 +388,17 @@ export default function AdminUserExcelUpload({ onUploadSuccess }: { onUploadSucc
                 display: "flex",
                 alignItems: "center",
                 gap: "0.4rem",
-                padding: "0.55rem 1rem",
+                padding: "0.5rem 0.9rem",
                 borderRadius: "8px",
-                backgroundColor: "var(--bg-input)",
                 border: "1px solid var(--border-subtle)",
+                backgroundColor: "var(--bg-input)",
                 color: "var(--text-main)",
-                fontSize: "0.85rem",
+                fontSize: "0.8rem",
                 fontWeight: "600",
                 cursor: "pointer"
               }}
             >
-              <Download size={15} color="#22c55e" /> Download .xlsx Template
+              <Download size={14} color="#10b981" /> Template (.xlsx)
             </button>
             <button
               onClick={() => handleDownloadTemplate("csv")}
@@ -285,35 +406,95 @@ export default function AdminUserExcelUpload({ onUploadSuccess }: { onUploadSucc
                 display: "flex",
                 alignItems: "center",
                 gap: "0.4rem",
-                padding: "0.55rem 1rem",
+                padding: "0.5rem 0.9rem",
                 borderRadius: "8px",
-                backgroundColor: "var(--bg-input)",
                 border: "1px solid var(--border-subtle)",
+                backgroundColor: "var(--bg-input)",
                 color: "var(--text-main)",
-                fontSize: "0.85rem",
+                fontSize: "0.8rem",
                 fontWeight: "600",
                 cursor: "pointer"
               }}
             >
-              <Download size={15} color="var(--royal-blue)" /> Download .csv Template
+              <Download size={14} color="var(--sky-blue)" /> Template (.csv)
             </button>
+          </div>
+        </div>
+
+        {/* 1. SELECT USER MODE TABS */}
+        <div style={{ marginTop: "1.5rem", paddingTop: "1.25rem", borderTop: "1px solid var(--border-subtle)" }}>
+          <span style={{ fontSize: "0.8rem", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.75rem" }}>
+            Step 1: Select User Mode for Onboarding
+          </span>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "0.75rem" }}>
+            {(["STUDENT", "FACULTY", "HOD", "ALL"] as UserOnboardMode[]).map((modeKey) => {
+              const cfg = MODE_COLUMNS[modeKey];
+              const IconComp = cfg.icon;
+              const isSelected = selectedMode === modeKey;
+
+              return (
+                <div
+                  key={modeKey}
+                  onClick={() => {
+                    setSelectedMode(modeKey);
+                    // clear file on mode switch to ensure correct template matching
+                    handleClear();
+                  }}
+                  style={{
+                    padding: "0.9rem 1rem",
+                    borderRadius: "10px",
+                    border: isSelected ? `2px solid ${cfg.badgeColor}` : "1px solid var(--border-subtle)",
+                    backgroundColor: isSelected ? cfg.badgeBg : "var(--bg-input)",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.75rem"
+                  }}
+                >
+                  <div style={{
+                    width: "36px",
+                    height: "36px",
+                    borderRadius: "8px",
+                    backgroundColor: isSelected ? cfg.badgeColor : "rgba(255,255,255,0.08)",
+                    color: isSelected ? "#fff" : cfg.badgeColor,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center"
+                  }}>
+                    <IconComp size={18} />
+                  </div>
+                  <div>
+                    <strong style={{ fontSize: "0.9rem", color: isSelected ? cfg.badgeColor : "var(--text-main)", display: "block" }}>
+                      {modeKey === "ALL" ? "All Roles (Mixed)" : `${modeKey} Mode`}
+                    </strong>
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                      {modeKey === "STUDENT" && "Roll No, Sem, Sec, Dept"}
+                      {modeKey === "FACULTY" && "VMS No, Designation, Dept"}
+                      {modeKey === "HOD" && "MTS No, Dept, Head Role"}
+                      {modeKey === "ALL" && "All combined with Role col"}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
 
-      {/* Format Arrangement Specification Card */}
+      {/* 2. DYNAMIC COLUMN REQUIREMENTS TABLE */}
       <div className="student-card premium-card" style={{ padding: "1.5rem" }}>
         <div 
           onClick={() => setShowFormatGuide(!showFormatGuide)}
           style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", userSelect: "none" }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <Info size={18} color="#22c55e" />
+            <Info size={18} color={currentModeConfig.badgeColor} />
             <h3 style={{ fontSize: "1.05rem", fontWeight: "700", margin: 0, color: "var(--text-main)" }}>
-              File Format & Profile Arrangement Guide
+              Step 2: Required Columns for {selectedMode} Mode
             </h3>
           </div>
-          <span style={{ fontSize: "0.85rem", color: "#22c55e", fontWeight: "600" }}>
+          <span style={{ fontSize: "0.85rem", color: currentModeConfig.badgeColor, fontWeight: "600" }}>
             {showFormatGuide ? "Hide Column Details ▲" : "Show Column Details ▼"}
           </span>
         </div>
@@ -321,38 +502,25 @@ export default function AdminUserExcelUpload({ onUploadSuccess }: { onUploadSucc
         {showFormatGuide && (
           <div style={{ marginTop: "1.25rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
             <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
-              Each row creates a User in the database and automatically populates their linked profile (StudentProfile, FacultyProfile, or HodProfile):
+              Ensure your Excel sheet (.xlsx, .csv) contains the following header row. Header matching is case-insensitive:
             </p>
 
-            <div style={{ overflowX: "auto" }}>
+            <div className="responsive-table-wrapper" style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.825rem", textAlign: "left" }}>
                 <thead>
                   <tr style={{ backgroundColor: "var(--bg-input)", borderBottom: "1px solid var(--border-subtle)" }}>
                     <th style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)", fontWeight: "700" }}>COLUMN HEADER</th>
-                    <th style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)", fontWeight: "700" }}>APPLIES TO</th>
-                    <th style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)", fontWeight: "700" }}>STATUS</th>
+                    <th style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)", fontWeight: "700" }}>REQUIREMENT</th>
                     <th style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)", fontWeight: "700" }}>SAMPLE VALUE</th>
-                    <th style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)", fontWeight: "700" }}>PROFILE FIELD POPULATED</th>
+                    <th style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)", fontWeight: "700" }}>TARGET FIELD</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {[
-                    { col: "Full Name", target: "All Roles", req: "Required", sample: "Aarav Sharma", desc: "User.name" },
-                    { col: "Email Address", target: "All Roles", req: "Required", sample: "aarav@veltech.edu.in", desc: "User.email (Primary Login Key)" },
-                    { col: "User Role", target: "All Roles", req: "Required", sample: "STUDENT, FACULTY, HOD, ADMIN", desc: "User.role" },
-                    { col: "VM No", target: "All Roles", req: "Recommended", sample: "17433, 1944", desc: "User.vmNo & Profile primary key" },
-                    { col: "Password", target: "All Roles", req: "Optional", sample: "Welcome@123", desc: "Encrypted into User.password (default Welcome@123)" },
-                    { col: "Department", target: "Student, Faculty, HOD", req: "Required", sample: "CSE, ECE, AIDS, MECH", desc: "Linked Department & Profile.department" },
-                    { col: "Roll Number", target: "Student Profile", req: "Optional", sample: "23CS101", desc: "StudentProfile.rollNumber (defaults to VM No)" },
-                    { col: "Year", target: "Student Profile", req: "Optional", sample: "I, II, III, IV", desc: "StudentProfile.year" },
-                    { col: "Section", target: "Student Profile", req: "Optional", sample: "A, B, C", desc: "StudentProfile.section" },
-                    { col: "Semester", target: "Student Profile", req: "Optional", sample: "1, 2, 3 ... 8", desc: "StudentProfile.semester" },
-                    { col: "Batch", target: "Student Profile", req: "Optional", sample: "2023-2027", desc: "StudentProfile.batch" },
-                    { col: "Designation", target: "Faculty & HOD", req: "Optional", sample: "Assistant Professor, HOD", desc: "FacultyProfile.designation / HodProfile" },
-                  ].map((item, idx) => (
+                  {currentModeConfig.columnsGuide.map((item, idx) => (
                     <tr key={idx} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                      <td style={{ padding: "0.6rem 0.75rem", fontWeight: "700", color: "var(--text-main)" }}><code>{item.col}</code></td>
-                      <td style={{ padding: "0.6rem 0.75rem", color: "var(--sky-blue)", fontWeight: "600" }}>{item.target}</td>
+                      <td style={{ padding: "0.6rem 0.75rem", fontWeight: "700", color: "var(--text-main)" }}>
+                        <code>{item.col}</code>
+                      </td>
                       <td style={{ padding: "0.6rem 0.75rem" }}>
                         <span style={{ 
                           padding: "0.15rem 0.45rem", 
@@ -365,8 +533,12 @@ export default function AdminUserExcelUpload({ onUploadSuccess }: { onUploadSucc
                           {item.req}
                         </span>
                       </td>
-                      <td style={{ padding: "0.6rem 0.75rem", color: "var(--text-main)", fontFamily: "monospace" }}>{item.sample}</td>
-                      <td style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)" }}>{item.desc}</td>
+                      <td style={{ padding: "0.6rem 0.75rem", color: "var(--text-main)", fontFamily: "monospace" }}>
+                        {item.sample}
+                      </td>
+                      <td style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)" }}>
+                        {item.desc}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -376,8 +548,12 @@ export default function AdminUserExcelUpload({ onUploadSuccess }: { onUploadSucc
         )}
       </div>
 
-      {/* Drag & Drop Upload Card */}
+      {/* 3. DRAG & DROP UPLOAD */}
       <div className="student-card premium-card" style={{ padding: "1.75rem" }}>
+        <span style={{ fontSize: "0.8rem", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.75rem" }}>
+          Step 3: Upload Excel Sheet for {selectedMode} Mode
+        </span>
+
         <div
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleDrop}
@@ -388,10 +564,10 @@ export default function AdminUserExcelUpload({ onUploadSuccess }: { onUploadSucc
             padding: "2.5rem 1.5rem",
             textAlign: "center",
             cursor: "pointer",
-            backgroundColor: file ? "rgba(34, 197, 94, 0.04)" : "var(--bg-input)",
+            backgroundColor: file ? "rgba(16, 185, 129, 0.04)" : "var(--bg-input)",
             transition: "all 0.2s ease"
           }}
-          onMouseEnter={(e) => e.currentTarget.style.borderColor = "#22c55e"}
+          onMouseEnter={(e) => e.currentTarget.style.borderColor = currentModeConfig.badgeColor}
           onMouseLeave={(e) => e.currentTarget.style.borderColor = "var(--border-subtle)"}
         >
           <input
@@ -403,131 +579,133 @@ export default function AdminUserExcelUpload({ onUploadSuccess }: { onUploadSucc
           />
 
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
-            <div style={{ width: "56px", height: "56px", borderRadius: "14px", backgroundColor: "rgba(34, 197, 94, 0.1)", color: "#22c55e", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <UserPlus size={28} />
+            <div style={{
+              width: "50px",
+              height: "50px",
+              borderRadius: "12px",
+              backgroundColor: currentModeConfig.badgeBg,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: currentModeConfig.badgeColor
+            }}>
+              <UploadCloud size={24} />
             </div>
 
             <div>
-              <h4 style={{ margin: "0 0 0.25rem 0", fontSize: "1.1rem", fontWeight: "700", color: "var(--text-main)" }}>
-                {file ? file.name : "Click to select or drag & drop Users & Profile Excel file"}
-              </h4>
-              <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
-                Supports Microsoft Excel (.xlsx, .xls) and Comma-Separated Values (.csv)
-              </p>
+              <strong style={{ fontSize: "1rem", color: "var(--text-main)", display: "block" }}>
+                {file ? file.name : `Click or Drag & Drop ${selectedMode} Excel Sheet`}
+              </strong>
+              <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                {file ? `${(file.size / 1024).toFixed(1)} KB • Ready to extract & onboard` : "Supports .xlsx and .csv"}
+              </span>
             </div>
-
-            {file && (
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem", padding: "0.3rem 0.75rem", borderRadius: "6px", backgroundColor: "rgba(34, 197, 94, 0.1)", color: "#22c55e", fontSize: "0.8rem", fontWeight: "700" }}>
-                <CheckCircle2 size={14} /> File loaded ({(file.size / 1024).toFixed(1)} KB)
-              </div>
-            )}
           </div>
         </div>
 
+        {/* Error Notification */}
         {parsingError && (
-          <div style={{ marginTop: "1rem", padding: "0.85rem 1rem", borderRadius: "8px", backgroundColor: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)", color: "#ef4444", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <AlertCircle size={16} /> {parsingError}
-          </div>
-        )}
-
-        {uploadResult && (
-          <div style={{ 
-            marginTop: "1rem", 
-            padding: "0.85rem 1rem", 
-            borderRadius: "8px", 
-            backgroundColor: uploadResult.success ? "rgba(34, 197, 94, 0.1)" : "rgba(239, 68, 68, 0.1)", 
-            border: `1px solid ${uploadResult.success ? "rgba(34, 197, 94, 0.3)" : "rgba(239, 68, 68, 0.3)"}`, 
-            color: uploadResult.success ? "#22c55e" : "#ef4444", 
-            fontSize: "0.85rem", 
-            display: "flex", 
-            alignItems: "center", 
-            gap: "0.5rem" 
+          <div style={{
+            marginTop: "1rem",
+            padding: "0.75rem 1rem",
+            borderRadius: "8px",
+            backgroundColor: "rgba(239, 68, 68, 0.1)",
+            border: "1px solid rgba(239, 68, 68, 0.2)",
+            color: "#ef4444",
+            fontSize: "0.85rem",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem"
           }}>
-            {uploadResult.success ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-            {uploadResult.message}
+            <AlertCircle size={16} />
+            <span>{parsingError}</span>
           </div>
         )}
 
-        {/* Action Bar when rows are parsed */}
+        {/* Upload Result Notification */}
+        {uploadResult && (
+          <div style={{
+            marginTop: "1rem",
+            padding: "0.85rem 1.1rem",
+            borderRadius: "8px",
+            backgroundColor: uploadResult.success ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)",
+            border: `1px solid ${uploadResult.success ? "rgba(16, 185, 129, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
+            color: uploadResult.success ? "#10b981" : "#ef4444",
+            fontSize: "0.85rem",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem"
+          }}>
+            {uploadResult.success ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+            <div>
+              <strong>{uploadResult.success ? "Success:" : "Error:"}</strong> {uploadResult.message}
+            </div>
+          </div>
+        )}
+
+        {/* Action Buttons */}
         {parsedRows.length > 0 && (
-          <div style={{ marginTop: "1.5rem", borderTop: "1px solid var(--border-subtle)", paddingTop: "1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
-              <div style={{ fontSize: "0.85rem" }}>
-                <span style={{ color: "var(--text-muted)" }}>Total Users: </span>
-                <strong style={{ color: "#22c55e", fontSize: "1rem" }}>{parsedRows.length}</strong>
-              </div>
-
-              {studentCount > 0 && (
-                <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontSize: "0.8rem", padding: "0.2rem 0.5rem", borderRadius: "6px", backgroundColor: "rgba(56, 189, 248, 0.1)", color: "var(--sky-blue)", fontWeight: "700" }}>
-                  <GraduationCap size={14} /> Students: {studentCount}
-                </div>
-              )}
-
-              {facultyCount > 0 && (
-                <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontSize: "0.8rem", padding: "0.2rem 0.5rem", borderRadius: "6px", backgroundColor: "rgba(34, 197, 94, 0.1)", color: "#22c55e", fontWeight: "700" }}>
-                  <Briefcase size={14} /> Faculty: {facultyCount}
-                </div>
-              )}
-
-              {hodCount > 0 && (
-                <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontSize: "0.8rem", padding: "0.2rem 0.5rem", borderRadius: "6px", backgroundColor: "rgba(168, 85, 247, 0.1)", color: "#a855f7", fontWeight: "700" }}>
-                  <Users size={14} /> HODs: {hodCount}
-                </div>
-              )}
-
-              {adminCount > 0 && (
-                <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontSize: "0.8rem", padding: "0.2rem 0.5rem", borderRadius: "6px", backgroundColor: "rgba(239, 68, 68, 0.1)", color: "#ef4444", fontWeight: "700" }}>
-                  <ShieldCheck size={14} /> Admins: {adminCount}
-                </div>
-              )}
+          <div style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: "1rem",
+            marginTop: "1.25rem",
+            paddingTop: "1rem",
+            borderTop: "1px solid var(--border-subtle)"
+          }}>
+            <div style={{ display: "flex", gap: "1rem", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+              <span>Total Parsed: <strong style={{ color: "var(--text-main)" }}>{parsedRows.length}</strong></span>
+              {studentCount > 0 && <span>Students: <strong style={{ color: "var(--sky-blue)" }}>{studentCount}</strong></span>}
+              {facultyCount > 0 && <span>Faculty: <strong style={{ color: "#10b981" }}>{facultyCount}</strong></span>}
+              {hodCount > 0 && <span>HODs: <strong style={{ color: "#a855f7" }}>{hodCount}</strong></span>}
             </div>
 
             <div style={{ display: "flex", gap: "0.75rem" }}>
               <button
                 onClick={handleClear}
+                disabled={uploading}
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.4rem",
                   padding: "0.6rem 1rem",
                   borderRadius: "8px",
                   border: "1px solid var(--border-subtle)",
-                  backgroundColor: "transparent",
-                  color: "var(--text-muted)",
+                  backgroundColor: "var(--bg-input)",
+                  color: "var(--text-main)",
                   fontSize: "0.85rem",
                   fontWeight: "600",
                   cursor: "pointer"
                 }}
               >
-                <Trash2 size={15} /> Clear
+                Clear
               </button>
 
               <button
                 onClick={handleUploadToDb}
                 disabled={uploading}
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                  padding: "0.6rem 1.4rem",
+                  padding: "0.6rem 1.25rem",
                   borderRadius: "8px",
                   border: "none",
-                  backgroundColor: "#22c55e",
-                  color: "#fff",
-                  fontSize: "0.9rem",
+                  backgroundColor: "var(--royal-blue)",
+                  color: "white",
+                  fontSize: "0.85rem",
                   fontWeight: "700",
                   cursor: uploading ? "not-allowed" : "pointer",
-                  opacity: uploading ? 0.7 : 1,
-                  boxShadow: "0 4px 12px rgba(34, 197, 94, 0.3)"
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.4rem"
                 }}
               >
                 {uploading ? (
                   <>
-                    <RefreshCw size={16} className="loading-spinner" /> Creating Users in DB...
+                    <RefreshCw size={15} className="spin-animation" />
+                    Saving Accounts to Database...
                   </>
                 ) : (
                   <>
-                    <UserPlus size={16} /> Save Users & Profiles ({parsedRows.length})
+                    <UserPlus size={15} />
+                    Import {parsedRows.length} {selectedMode} Users to Database
                   </>
                 )}
               </button>
@@ -536,64 +714,53 @@ export default function AdminUserExcelUpload({ onUploadSuccess }: { onUploadSucc
         )}
       </div>
 
-      {/* Interactive Table Preview of Parsed Data */}
+      {/* 4. PREVIEW TABLE */}
       {parsedRows.length > 0 && (
         <div className="student-card premium-card" style={{ padding: "1.5rem" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-            <h3 style={{ fontSize: "1.05rem", fontWeight: "700", margin: 0, color: "var(--text-main)" }}>
-              Data Preview (Showing first 10 of {parsedRows.length} parsed users)
-            </h3>
-            <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-              Customized profile values to be written to DB
-            </span>
-          </div>
+          <h3 style={{ fontSize: "1rem", fontWeight: "700", margin: "0 0 1rem 0", color: "var(--text-main)" }}>
+            Extracted Preview ({parsedRows.length} Users)
+          </h3>
 
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.825rem", textAlign: "left" }}>
+          <div className="responsive-table-wrapper" style={{ maxHeight: "300px", overflowY: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem", textAlign: "left" }}>
               <thead>
-                <tr style={{ backgroundColor: "var(--bg-input)", borderBottom: "1px solid var(--border-subtle)" }}>
-                  <th style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)" }}>#</th>
-                  <th style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)" }}>NAME</th>
-                  <th style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)" }}>EMAIL</th>
-                  <th style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)" }}>ROLE</th>
-                  <th style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)" }}>VM NO</th>
-                  <th style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)" }}>DEPT</th>
-                  <th style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)" }}>PROFILE SPECIFICS</th>
+                <tr style={{ backgroundColor: "var(--bg-card-header)", borderBottom: "1px solid var(--border-subtle)", color: "var(--text-muted)" }}>
+                  <th style={{ padding: "0.5rem 0.6rem" }}>#</th>
+                  <th style={{ padding: "0.5rem 0.6rem" }}>Full Name</th>
+                  <th style={{ padding: "0.5rem 0.6rem" }}>Email Address</th>
+                  <th style={{ padding: "0.5rem 0.6rem" }}>Role</th>
+                  <th style={{ padding: "0.5rem 0.6rem" }}>VM No</th>
+                  <th style={{ padding: "0.5rem 0.6rem" }}>Dept</th>
+                  {selectedMode === "STUDENT" && <th style={{ padding: "0.5rem 0.6rem" }}>Sem / Sec</th>}
+                  {(selectedMode === "FACULTY" || selectedMode === "HOD") && <th style={{ padding: "0.5rem 0.6rem" }}>Designation</th>}
                 </tr>
               </thead>
               <tbody>
-                {parsedRows.slice(0, 10).map((row, i) => (
-                  <tr key={i} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                    <td style={{ padding: "0.55rem 0.75rem", color: "var(--text-muted)" }}>{i + 1}</td>
-                    <td style={{ padding: "0.55rem 0.75rem", fontWeight: "700", color: "var(--text-main)" }}>{row.name}</td>
-                    <td style={{ padding: "0.55rem 0.75rem", color: "var(--sky-blue)" }}>{row.email}</td>
-                    <td style={{ padding: "0.55rem 0.75rem" }}>
+                {parsedRows.map((u, idx) => (
+                  <tr key={idx} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                    <td style={{ padding: "0.45rem 0.6rem", color: "var(--text-muted)" }}>{idx + 1}</td>
+                    <td style={{ padding: "0.45rem 0.6rem", fontWeight: "600", color: "var(--text-main)" }}>{u.name}</td>
+                    <td style={{ padding: "0.45rem 0.6rem", color: "var(--sky-blue)" }}>{u.email}</td>
+                    <td style={{ padding: "0.45rem 0.6rem" }}>
                       <span style={{
-                        padding: "0.15rem 0.45rem",
+                        padding: "0.15rem 0.4rem",
                         borderRadius: "4px",
                         fontSize: "0.7rem",
                         fontWeight: "700",
-                        backgroundColor: 
-                          row.role === "STUDENT" ? "rgba(56, 189, 248, 0.15)" :
-                          row.role === "FACULTY" ? "rgba(34, 197, 94, 0.15)" :
-                          row.role === "HOD" ? "rgba(168, 85, 247, 0.15)" : "rgba(239, 68, 68, 0.15)",
-                        color:
-                          row.role === "STUDENT" ? "var(--sky-blue)" :
-                          row.role === "FACULTY" ? "#22c55e" :
-                          row.role === "HOD" ? "#a855f7" : "#ef4444"
+                        backgroundColor: u.role === "STUDENT" ? "rgba(56, 189, 248, 0.15)" : u.role === "FACULTY" ? "rgba(16, 185, 129, 0.15)" : "rgba(168, 85, 247, 0.15)",
+                        color: u.role === "STUDENT" ? "var(--sky-blue)" : u.role === "FACULTY" ? "#10b981" : "#a855f7"
                       }}>
-                        {row.role}
+                        {u.role}
                       </span>
                     </td>
-                    <td style={{ padding: "0.55rem 0.75rem", fontFamily: "monospace" }}>{row.vmNo || "—"}</td>
-                    <td style={{ padding: "0.55rem 0.75rem", fontWeight: "700" }}>{row.department || "CSE"}</td>
-                    <td style={{ padding: "0.55rem 0.75rem", color: "var(--text-muted)" }}>
-                      {row.role === "STUDENT" ? (
-                        <span>Year: {row.year} • Sec: {row.section} • Roll: {row.rollNumber || row.vmNo || "N/A"} • Sem: {row.semester}</span>
-                      ) : (
-                        <span>Designation: {row.designation || "Staff"}</span>
-                      )}
-                    </td>
+                    <td style={{ padding: "0.45rem 0.6rem", fontFamily: "monospace" }}>{u.vmNo || "-"}</td>
+                    <td style={{ padding: "0.45rem 0.6rem", fontWeight: "600" }}>{u.department}</td>
+                    {selectedMode === "STUDENT" && (
+                      <td style={{ padding: "0.45rem 0.6rem" }}>Sem {u.semester} / {u.section}</td>
+                    )}
+                    {(selectedMode === "FACULTY" || selectedMode === "HOD") && (
+                      <td style={{ padding: "0.45rem 0.6rem" }}>{u.designation}</td>
+                    )}
                   </tr>
                 ))}
               </tbody>

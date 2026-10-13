@@ -232,6 +232,14 @@ export default function DashboardPage() {
         subtitle={`Schedule for Class ${data?.student?.classId || "N/A"}`}
         mode="student"
         classId={data?.student?.classId}
+        userDetails={{
+          name: data?.student?.name,
+          rollNumber: data?.student?.vmNo,
+          classId: data?.student?.classId,
+          department: data?.student?.department,
+          semester: data?.student?.semester,
+          section: data?.student?.section,
+        }}
       />
     </main>
   );

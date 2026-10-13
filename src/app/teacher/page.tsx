@@ -400,6 +400,12 @@ export default function TeacherDashboardPage() {
         subtitle={`Faculty Schedule: ${data?.teacher?.name || "Faculty"} (${data?.teacher?.vmNo || "N/A"}) • ${data?.teacher?.department || "CSE"}`}
         mode="teacher"
         facultyName={data?.teacher?.name}
+        userDetails={{
+          name: data?.teacher?.name,
+          vmNo: data?.teacher?.vmNo,
+          department: data?.teacher?.department,
+          designation: data?.teacher?.designation || "Assistant Professor",
+        }}
       />
 
       <style dangerouslySetInnerHTML={{__html: `

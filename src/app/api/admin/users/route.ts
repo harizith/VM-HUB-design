@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { encrypt } from "@/lib/encryption";
+import { hashPassword } from "@/lib/encryption";
 
 // GET /api/admin/users - Fetch all users with their profile relations from DB
 export async function GET() {
@@ -58,8 +58,8 @@ export async function POST(req: Request) {
     const cleanEmail = email.toLowerCase().trim();
     const cleanName = name.trim();
     const cleanVmNo = vmNo ? vmNo.trim() : null;
-    // Encrypt the password symmetrically so it's protected in DB but reversible
-    const storedPassword = encrypt(password);
+    // Hash password with salted bcrypt for secure storage
+    const storedPassword = await hashPassword(password);
     const validRole = ["STUDENT", "FACULTY", "HOD", "ADMIN"].includes(role) ? role : "STUDENT";
 
     // 1. Check if user already exists

@@ -140,6 +140,7 @@ model TimetableEntry {
   facultyName String
   roomNo      String
   vmsNo       String?
+  category    String?  // sub1, sub2, sub3, lab1, lab2, pe, oe, additional1, additional2
   createdAt   DateTime @default(now())
   
   @@index([classId, dayOrder])

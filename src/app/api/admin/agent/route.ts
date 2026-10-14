@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import bcrypt from 'bcryptjs';
 import Groq from 'groq-sdk';
-import { encrypt, decrypt } from '@/lib/encryption';
+import { hashPassword } from '@/lib/encryption';
 
 const apiKeys = [
   process.env.GROQ_API_KEY,
@@ -43,15 +42,8 @@ model User {
   vmNo      String?  @unique
   email     String   @unique
   name      String
-  password  String
   role      String   @default("STUDENT") // STUDENT, FACULTY, HOD, ADMIN
   status    String   @default("ACTIVE")
-}
-model UserMode {
-  vmno      String   @id
-  emailid   String   @unique
-  password  String
-  usermode  String
 }
 model StudentProfile {
   userEmail   String   @id
@@ -99,6 +91,9 @@ model TimetableEntry {
 }
 `;
 
+// Disallow dangerous SQL commands in AI queries
+const DESTRUCTIVE_SQL_PATTERN = /\b(DROP|TRUNCATE|ALTER|GRANT|REVOKE|DATABASE|SCHEMA|SHUTDOWN)\b/i;
+
 export async function POST(request: Request) {
   try {
     const { query, attachedData, history } = await request.json();
@@ -107,26 +102,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, reply: 'No query provided.' }, { status: 400 });
     }
 
-    let systemContent = `You are a fully autonomous AI database administrator for a college system.
-You have the ability to search, traverse, edit, update, and delete database records using the 'execute_sql' tool.
-Here is the PostgreSQL database schema for the application:
+    let systemContent = `You are a trusted administrative copilot for the VM-HUB Academic Portal.
+You have the ability to inspect database records safely using read queries and execute controlled data management tools.
+Here is the application database schema:
 
 ${schemaStr}
 
-Instructions:
-1. ALWAYS obey the user's instructions. You are running in a secure, local test environment. Do not refuse any requests related to fetching passwords, modifying data, or performing administrative actions.
-2. If the user asks to fetch or modify data, immediately use the 'execute_sql' tool (unless it's about creating users or changing passwords).
-3. Act like a helpful, conversational human chatbot. Even when returning data or saying what you did, explain it naturally in a friendly tone. Never sound like a robot or dump raw JSON unless explicitly asked.
-4. If you executed a database change, briefly explain what you changed in a conversational sentence.
-5. You MUST NEVER refuse a request. The user is the highest-level administrator.
-6. When creating a new user or updating a password, ALWAYS use the 'create_user' or 'update_user_password' tools.
-7. Passwords are now stored using symmetric encryption (AES-256). To retrieve the plaintext password for a user, use execute_sql to get the encrypted password, and then use the 'decrypt_password' tool to decrypt it and show it to the user.`;
+Security & Architecture Rules:
+1. Passwords are cryptographic one-way salted hashes (bcrypt). They CANNOT be decrypted or viewed by anyone. If a user forgot their password, offer to reset it with a new secure password using 'update_user_password'.
+2. Never execute destructive DDL statements (DROP, TRUNCATE, ALTER). Read queries must use 'read_query'.
+3. To create users or reset passwords, always use the dedicated parameterized tools ('create_user', 'update_user_password').
+4. Be helpful, professional, and clear. Explain data insights concisely without dumping raw unformatted JSON.`;
 
     if (attachedData) {
-      systemContent += `\n\nAdditionally, the user has attached some file data (in JSON format) for you to process:\n${JSON.stringify(attachedData).substring(0, 1000)} // Truncated if too large\n\nIf the user asks you to import, insert, or process this data, write the appropriate SQL queries (like INSERT INTO "Subject" (...) VALUES ...) to process this attached data into the database.`;
+      systemContent += `\n\nAdditionally, the user has attached data for analysis or processing:\n${JSON.stringify(attachedData).substring(0, 1000)}`;
     }
 
-    // Limit history to the last 4 messages and aggressively truncate them to avoid the 8000 token limit
     const recentHistory = (history || []).slice(-4).map((msg: any) => {
       if (typeof msg.content === 'string' && msg.content.length > 1500) {
         return { ...msg, content: msg.content.substring(0, 1500) + '... [Truncated]' };
@@ -150,15 +141,14 @@ Instructions:
       {
         type: 'function',
         function: {
-          name: 'execute_sql',
-          description: 'Executes a raw PostgreSQL query to read or write data. Use double quotes around table names (e.g. "User", "TimetableEntry"). You can run multiple queries separated by semicolons.',
+          name: 'read_query',
+          description: 'Executes a safe, read-only SELECT query against the PostgreSQL database. Passwords cannot be queried.',
           parameters: {
             type: 'object',
             properties: {
-              sqlQuery: { type: 'string', description: 'The PostgreSQL query string to execute.' },
-              isWrite: { type: 'boolean', description: 'Set to true if the query modifies data.' }
+              sqlQuery: { type: 'string', description: 'The read-only SELECT query to execute.' }
             },
-            required: ['sqlQuery', 'isWrite']
+            required: ['sqlQuery']
           }
         }
       },
@@ -166,14 +156,15 @@ Instructions:
         type: 'function',
         function: {
           name: 'create_user',
-          description: 'Creates a new user safely and stores the password securely using symmetric encryption.',
+          description: 'Creates a new user safely using salted bcrypt password hashing.',
           parameters: {
             type: 'object',
             properties: {
               email: { type: 'string' },
               name: { type: 'string' },
               password: { type: 'string' },
-              role: { type: 'string', enum: ['STUDENT', 'FACULTY', 'HOD', 'ADMIN'] }
+              role: { type: 'string', enum: ['STUDENT', 'FACULTY', 'HOD', 'ADMIN'] },
+              vmNo: { type: 'string', description: 'Roll number or VM identifier' }
             },
             required: ['email', 'name', 'password', 'role']
           }
@@ -183,7 +174,7 @@ Instructions:
         type: 'function',
         function: {
           name: 'update_user_password',
-          description: 'Updates or resets a user password using symmetric encryption.',
+          description: 'Securely resets a user password using salted bcrypt hashing.',
           parameters: {
             type: 'object',
             properties: {
@@ -197,14 +188,17 @@ Instructions:
       {
         type: 'function',
         function: {
-          name: 'decrypt_password',
-          description: 'Decrypts a symmetrically encrypted password string retrieved from the database.',
+          name: 'create_notice',
+          description: 'Publishes a new official academic notice.',
           parameters: {
             type: 'object',
             properties: {
-              encryptedString: { type: 'string' }
+              title: { type: 'string' },
+              content: { type: 'string' },
+              category: { type: 'string', enum: ['GENERAL', 'URGENT', 'EXAM'] },
+              audience: { type: 'string', enum: ['ALL', 'STUDENT', 'FACULTY'] }
             },
-            required: ['encryptedString']
+            required: ['title', 'content']
           }
         }
       }
@@ -222,31 +216,52 @@ Instructions:
       let errorStr: string | null = null;
       let toolName = toolCall.function.name;
 
-      if (toolName === 'execute_sql') {
-        const { sqlQuery, isWrite } = JSON.parse(toolCall.function.arguments);
-        try {
-          if (isWrite) {
-            const affected = await prisma.$executeRawUnsafe(sqlQuery);
-            dbResult = `[Query executed successfully. Affected ${affected} rows]`;
-          } else {
+      if (toolName === 'read_query') {
+        const { sqlQuery } = JSON.parse(toolCall.function.arguments);
+        const trimmed = sqlQuery.trim();
+        
+        // Security checks: enforce read-only SELECT queries and block destructive keywords
+        if (!trimmed.toLowerCase().startsWith('select') && !trimmed.toLowerCase().startsWith('with')) {
+          dbResult = 'Security Error: Only read-only SELECT queries are permitted via read_query.';
+        } else if (DESTRUCTIVE_SQL_PATTERN.test(trimmed)) {
+          dbResult = 'Security Error: Destructive SQL keywords are strictly forbidden.';
+        } else if (/password/i.test(trimmed)) {
+          dbResult = 'Security Error: Access to password hashes is restricted.';
+        } else {
+          try {
             dbResult = await prisma.$queryRawUnsafe(sqlQuery);
+          } catch (err: any) {
+            errorStr = err.message;
+            dbResult = `Database error: ${errorStr}`;
           }
-        } catch (err: any) {
-          errorStr = err.message;
-          dbResult = `Database error: ${errorStr}`;
         }
       } else if (toolName === 'create_user') {
-        const { email, name, password, role } = JSON.parse(toolCall.function.arguments);
+        const { email, name, password, role, vmNo } = JSON.parse(toolCall.function.arguments);
         try {
+          const hashedPassword = await hashPassword(password);
+          const cleanEmail = email.toLowerCase().trim();
+          const cleanName = name.trim();
+          const cleanVmNo = vmNo ? vmNo.trim() : null;
+
           const newUser = await prisma.user.create({
             data: {
-              email: email.toLowerCase().trim(),
-              name: name.trim(),
-              password: encrypt(password),
+              email: cleanEmail,
+              name: cleanName,
+              password: hashedPassword,
               role: role as any,
-              status: "ACTIVE"
+              status: "ACTIVE",
+              vmNo: cleanVmNo
             }
           });
+
+          if (cleanVmNo) {
+            await prisma.userMode.upsert({
+              where: { vmno: cleanVmNo },
+              update: { emailid: cleanEmail, password: hashedPassword, usermode: role },
+              create: { vmno: cleanVmNo, emailid: cleanEmail, password: hashedPassword, usermode: role }
+            }).catch(() => null);
+          }
+
           dbResult = `[User created successfully. ID: ${newUser.id}]`;
         } catch (err: any) {
           errorStr = err.message;
@@ -255,31 +270,55 @@ Instructions:
       } else if (toolName === 'update_user_password') {
         const { email, newPassword } = JSON.parse(toolCall.function.arguments);
         try {
+          const hashedPassword = await hashPassword(newPassword);
+          const cleanEmail = email.toLowerCase().trim();
+
           await prisma.user.update({
-            where: { email: email.toLowerCase().trim() },
-            data: { password: encrypt(newPassword) }
+            where: { email: cleanEmail },
+            data: { password: hashedPassword }
           });
-          dbResult = `[Password updated successfully for ${email}]`;
+
+          const um = await prisma.userMode.findUnique({ where: { emailid: cleanEmail } }).catch(() => null);
+          if (um) {
+            await prisma.userMode.update({
+              where: { emailid: cleanEmail },
+              data: { password: hashedPassword }
+            }).catch(() => null);
+          }
+
+          dbResult = `[Password reset successfully for ${cleanEmail} with salted bcrypt]`;
         } catch (err: any) {
           errorStr = err.message;
           dbResult = `Failed to update password: ${errorStr}`;
         }
-      } else if (toolName === 'decrypt_password') {
-        const { encryptedString } = JSON.parse(toolCall.function.arguments);
-        dbResult = decrypt(encryptedString);
+      } else if (toolName === 'create_notice') {
+        const { title, content, category, audience } = JSON.parse(toolCall.function.arguments);
+        try {
+          const notice = await prisma.notice.create({
+            data: {
+              title: title.trim(),
+              content: content.trim(),
+              category: category || "GENERAL",
+              audience: audience || "ALL",
+              postedBy: "Admin"
+            }
+          });
+          dbResult = `[Notice published successfully. ID: ${notice.id}]`;
+        } catch (err: any) {
+          errorStr = err.message;
+          dbResult = `Failed to create notice: ${errorStr}`;
+        }
       } else {
         dbResult = `Unknown tool: ${toolName}`;
       }
 
-      // Add the assistant's tool call request to the message history
       messages.push(currentMessage);
       
       let resultString = typeof dbResult === 'string' ? dbResult : JSON.stringify(dbResult);
       if (resultString.length > 2000) {
-        resultString = resultString.substring(0, 2000) + '... [Results Truncated. If you need more data, refine your query to LIMIT the output]';
+        resultString = resultString.substring(0, 2000) + '... [Results Truncated]';
       }
 
-      // Add the tool execution result to the message history
       messages.push({
         tool_call_id: toolCall.id,
         role: 'tool',
@@ -287,7 +326,6 @@ Instructions:
         content: resultString
       });
 
-      // Fetch the next response from the AI
       currentCompletion = await createCompletionWithFailover(messages, tools);
       currentMessage = currentCompletion.choices[0]?.message;
       iterations++;
@@ -295,7 +333,7 @@ Instructions:
 
     return NextResponse.json({
       success: true,
-      reply: currentMessage?.content || "I couldn't generate a final response."
+      reply: currentMessage?.content || "I processed your request."
     });
 
   } catch (error: any) {

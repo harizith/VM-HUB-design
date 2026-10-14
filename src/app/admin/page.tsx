@@ -2,13 +2,16 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Users, Building2, BookOpen, Megaphone, Calendar, Sun, Moon, Globe, GraduationCap, Briefcase, UserCircle, Shield, Save, Edit, ArrowRight, Trash2, FileSpreadsheet, UserPlus, FileText, X } from "lucide-react";
+import { Users, Building2, BookOpen, Megaphone, Calendar, Sun, Moon, Globe, GraduationCap, Briefcase, UserCircle, Shield, Save, Edit, ArrowRight, Trash2, FileSpreadsheet, UserPlus, FileText, X, Zap, LayoutGrid } from "lucide-react";
 import AdminAgentChat from "@/components/AdminAgentChat";
 import AdminTimetablePdfUpload from "@/components/AdminTimetablePdfUpload";
 import AdminTimetableExcelUpload from "@/components/AdminTimetableExcelUpload";
 import AdminUserExcelUpload from "@/components/AdminUserExcelUpload";
 import CourseCatalog from "@/components/CourseCatalog";
 import OverallTimetable from "@/components/OverallTimetable";
+import Clock from "@/components/Clock";
+import AdminAutomationHub from "@/components/AdminAutomationHub";
+import TimetableCalendarView from "@/components/TimetableCalendarView";
 
 interface UserItem {
   id: string;
@@ -63,7 +66,7 @@ interface TimetableEntry {
 
 export default function AdminPage() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
-  const [activeTab, setActiveTab] = useState<"users" | "depts" | "subjects" | "notices" | "timetable" | "audit" | "upload-timetable" | "upload-users">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "depts" | "subjects" | "notices" | "timetable" | "audit" | "upload-timetable" | "upload-users" | "automation">("users");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Role Subdivision Filter State
@@ -83,6 +86,7 @@ export default function AdminPage() {
 
   // Timetable State
   const [timetableMode, setTimetableMode] = useState<"faculty" | "class">("faculty");
+  const [timetableCalendarView, setTimetableCalendarView] = useState(false);
   const [selectedDept, setSelectedDept] = useState("CSE");
   const [selectedYear, setSelectedYear] = useState("II");
   const [selectedSection, setSelectedSection] = useState("A");
@@ -571,6 +575,7 @@ export default function AdminPage() {
               { id: "timetable", label: "Timetables", Icon: Calendar, count: 0 },
               { id: "upload-timetable", label: "Upload Timetable PDF", Icon: FileText, count: 0 },
               { id: "upload-users", label: "Bulk User Onboarding", Icon: UserPlus, count: 0 },
+              { id: "automation", label: "Automation Engine", Icon: Zap, count: 0 },
               { id: "audit", label: "Audit Trail", Icon: Shield, count: auditLogs.length },
             ].map((nav) => (
               <button key={nav.id} onClick={() => { setActiveTab(nav.id as any); setSelectedUser(null); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", padding: "0.7rem 0.9rem", borderRadius: "8px", border: "none", cursor: "pointer", fontWeight: "600", fontSize: "0.85rem", backgroundColor: activeTab === nav.id ? "var(--royal-blue)" : "transparent", color: activeTab === nav.id ? "#ffffff" : "var(--text-muted)", transition: "all 0.2s ease" }}>
@@ -653,7 +658,7 @@ export default function AdminPage() {
       {/* MAIN CONTENT */}
       <main className="admin-main">
         <header className="admin-header-container">
-          <div className="admin-header-top">
+          <div className="admin-header-top" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
               <button className="hamburger-btn" onClick={() => setIsMobileSidebarOpen(true)}>
                 ☰
@@ -667,10 +672,14 @@ export default function AdminPage() {
                   {activeTab === "timetable" && "Class Timetable Management"}
                   {activeTab === "upload-timetable" && "Excel Timetable Import"}
                   {activeTab === "upload-users" && "Bulk User Creation & Profile Setup"}
+                  {activeTab === "automation" && "Autonomous Operations & Intelligence Engine"}
                   {activeTab === "audit" && "System Audit Trail & Security Logs"}
                 </h1>
                 <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--text-muted)" }}>Vel Tech Multi Tech Autonomous ERP System</p>
               </div>
+            </div>
+            <div style={{ flexShrink: 0, display: "flex", alignItems: "center" }}>
+              <Clock size={90} subtext="CAMPUS" />
             </div>
           </div>
         </header>
@@ -1001,6 +1010,14 @@ export default function AdminPage() {
                     </div>
 
                     {timetable.length > 0 && timetableMode === "class" && (
+                      <button onClick={() => setTimetableCalendarView(!timetableCalendarView)} style={{ padding: "0.4rem 0.85rem", borderRadius: "8px", border: "1px solid var(--border-subtle)", backgroundColor: timetableCalendarView ? "var(--sky-blue)" : "transparent", color: timetableCalendarView ? "#fff" : "var(--text-muted)", cursor: "pointer" }}>
+                         <span style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                           {timetableCalendarView ? <><LayoutGrid size={16} /> List View</> : <><Calendar size={16} /> Calendar View</>}
+                         </span>
+                      </button>
+                    )}
+
+                    {timetable.length > 0 && timetableMode === "class" && !timetableCalendarView && (
                       <button onClick={async () => {
                         if (isEditingTimetable) {
                           setLoadingTimetable(true);
@@ -1264,6 +1281,11 @@ export default function AdminPage() {
                   </div>
                 )}
               </div>
+            )}
+
+            {/* AUTOMATION ENGINE TAB */}
+            {activeTab === "automation" && (
+              <AdminAutomationHub />
             )}
 
             {/* AUDIT LOGS TAB */}

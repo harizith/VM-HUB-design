@@ -1,11 +1,51 @@
 import crypto from "crypto";
+import bcrypt from "bcryptjs";
 
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || "default_secret_key_32_bytes_long"; // Must be 32 bytes
-const IV_LENGTH = 16; // For AES, this is always 16
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || "default_secret_key_32_bytes_long";
+const IV_LENGTH = 16;
 
+/**
+ * Hashes a plaintext password securely using salted bcrypt.
+ * Passwords should never be stored reversibly in production.
+ */
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 10);
+}
+
+/**
+ * Securely verifies a password against stored credentials.
+ * Supports standard bcrypt hashes, with fallback support for legacy encrypted records during migration.
+ */
+export async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
+  if (!password || !storedHash) return false;
+
+  // 1. Primary check: standard bcrypt hash
+  try {
+    const isBcryptMatch = await bcrypt.compare(password, storedHash);
+    if (isBcryptMatch) return true;
+  } catch {
+    // Not a bcrypt hash, continue to legacy fallback
+  }
+
+  // 2. Legacy check: encrypted AES string from older versions
+  if (storedHash.includes(":")) {
+    const decrypted = decrypt(storedHash);
+    if (decrypted === password) return true;
+  }
+
+  // 3. Fallback: direct match (if previously stored in plaintext)
+  if (storedHash === password) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * @deprecated Legacy reversible encryption helper. Use hashPassword for user credentials.
+ */
 export function encrypt(text: string) {
   if (!text) return text;
-  // If it's already encrypted (starts with IV hex format) or is a bcrypt hash, avoid double encrypting
   if (text.startsWith("$2a$") || text.startsWith("$2b$") || text.includes(":")) return text;
 
   try {
@@ -20,13 +60,14 @@ export function encrypt(text: string) {
   }
 }
 
+/**
+ * @deprecated Legacy decryption helper for backwards compatibility.
+ */
 export function decrypt(text: string) {
   if (!text) return text;
-  // If it's a bcrypt hash, we cannot decrypt it
   if (text.startsWith("$2a$") || text.startsWith("$2b$")) {
-    return "[Cannot decrypt - old bcrypt hash]";
+    return "[Cannot decrypt - bcrypt hash]";
   }
-  // If it doesn't contain the IV separator, assume it's just plaintext (like a fallback)
   if (!text.includes(":")) {
     return text;
   }
@@ -41,6 +82,6 @@ export function decrypt(text: string) {
     return decrypted.toString();
   } catch (e) {
     console.error("Decryption error", e);
-    return text; // Return original on failure (maybe it was plaintext that happened to have a colon)
+    return text;
   }
 }

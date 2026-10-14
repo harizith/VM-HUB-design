@@ -58,6 +58,7 @@ export async function POST(req: Request) {
       const facultyName = (row.facultyName || row.faculty_name || row.faculty || row["Faculty Name"] || row["Faculty"] || "").toString().trim();
       const roomNo = (row.roomNo || row.room_no || row.room || row["Room No"] || row["Room"] || "").toString().trim() || "LH-101";
       const vmsNo = (row.vmsNo || row.vms_no || row.vmNo || row.vmno || row["VMS No"] || row["VM No"] || "").toString().trim() || null;
+      const category = (row.category || row.slotCategory || row.subjectCategory || row["Category"] || row["Subject Category"] || "").toString().trim().toLowerCase() || null;
       const rawTimeRange = (row.timeRange || row.time_range || row.time || row["Time Range"] || row["Time"] || "").toString().trim();
 
       if (!classId) {
@@ -83,6 +84,7 @@ export async function POST(req: Request) {
         facultyName: facultyName || "Staff",
         roomNo,
         vmsNo: vmsNo || null,
+        category: category || null,
       });
     });
 

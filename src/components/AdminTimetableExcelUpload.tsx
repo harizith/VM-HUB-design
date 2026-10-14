@@ -26,6 +26,7 @@ interface TimetablePreviewRow {
   facultyName: string;
   vmsNo?: string;
   roomNo: string;
+  category?: string;
 }
 
 export default function AdminTimetableExcelUpload({ onUploadSuccess }: { onUploadSuccess?: () => void }) {
@@ -46,6 +47,7 @@ export default function AdminTimetableExcelUpload({ onUploadSuccess }: { onUploa
       "Period": 1,
       "Subject Code": "CS3351",
       "Subject Name": "Digital Principles & System Design",
+      "Subject Category": "sub1",
       "Faculty Name": "Dr. R. Saravanan",
       "VMS No": "1944",
       "Room No": "LH-201",
@@ -57,6 +59,7 @@ export default function AdminTimetableExcelUpload({ onUploadSuccess }: { onUploa
       "Period": 2,
       "Subject Code": "CS3352",
       "Subject Name": "Foundations of Data Science",
+      "Subject Category": "sub2",
       "Faculty Name": "Ms. V. Vijayashanthi",
       "VMS No": "17433",
       "Room No": "LH-201",
@@ -68,6 +71,7 @@ export default function AdminTimetableExcelUpload({ onUploadSuccess }: { onUploa
       "Period": 3,
       "Subject Code": "CS3391",
       "Subject Name": "Object Oriented Programming",
+      "Subject Category": "lab1",
       "Faculty Name": "Mr. N. Insozhan",
       "VMS No": "1069",
       "Room No": "LH-201",
@@ -79,6 +83,7 @@ export default function AdminTimetableExcelUpload({ onUploadSuccess }: { onUploa
       "Period": 1,
       "Subject Code": "CS3701",
       "Subject Name": "Cloud Computing & DevOps",
+      "Subject Category": "pe",
       "Faculty Name": "Dr. E. Mercy Beulah",
       "VMS No": "2103",
       "Room No": "N-203",
@@ -141,6 +146,7 @@ export default function AdminTimetableExcelUpload({ onUploadSuccess }: { onUploa
           facultyName: (r["Faculty Name"] || r["Faculty"] || r.facultyName || r.faculty_name || "").toString().trim(),
           vmsNo: (r["VMS No"] || r["VM No"] || r.vmsNo || r.vmNo || "").toString().trim(),
           roomNo: (r["Room No"] || r["Room"] || r.roomNo || r.room_no || "LH-101").toString().trim(),
+          category: (r["Subject Category"] || r["Category"] || r.category || "").toString().trim().toLowerCase(),
         })).filter(r => r.classId && (r.subjectName || r.subjectCode));
 
         if (mapped.length === 0) {
@@ -309,6 +315,7 @@ export default function AdminTimetableExcelUpload({ onUploadSuccess }: { onUploa
                     { col: "Period", req: "Required", type: "Integer (1 to 8)", sample: "1, 2, 3 ... 8", note: "Period slot of the lecture" },
                     { col: "Subject Code", req: "Required", type: "Text", sample: "CS3351, 19CS501", note: "Official course code" },
                     { col: "Subject Name", req: "Required", type: "Text", sample: "Compiler Design", note: "Full name of the course" },
+                    { col: "Subject Category", req: "Optional", type: "Category Tag", sample: "sub1, sub2, sub3, lab1, lab2, pe, oe, additional1, additional2", note: "Flexible slot classifier for staff & HOD timetables" },
                     { col: "Faculty Name", req: "Recommended", type: "Text", sample: "Dr. R. Saravanan", note: "Lecturer / professor name" },
                     { col: "VMS No", req: "Optional", type: "Text", sample: "1944, 17433", note: "Faculty employee number (enables auto-sync to Teacher mode)" },
                     { col: "Room No", req: "Optional", type: "Text", sample: "LH-201, CS-LAB-1", note: "Lecture hall or lab room number (defaults to LH-101)" },

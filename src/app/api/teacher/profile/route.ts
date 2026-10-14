@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { hashPassword } from "@/lib/encryption";
 
 export async function GET(request: Request) {
   try {
@@ -74,10 +75,14 @@ export async function PUT(request: Request) {
 
     const dataToUpdate: any = {};
     if (name) dataToUpdate.name = name;
-    if (password) dataToUpdate.password = password;
 
     const umDataToUpdate: any = {};
-    if (password) umDataToUpdate.password = password;
+
+    if (password && password.trim()) {
+      const hashedPassword = await hashPassword(password.trim());
+      dataToUpdate.password = hashedPassword;
+      umDataToUpdate.password = hashedPassword;
+    }
 
     const profileDataToUpdate: any = {};
     if (department) profileDataToUpdate.department = department;

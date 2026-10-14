@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Users, Search, Filter, MoreVertical, CheckCircle, XCircle, Mail, Phone, ChevronDown } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Users, Search, Filter, MoreVertical, CheckCircle, XCircle, Mail, Phone, ChevronDown, FileText, Printer, X } from "lucide-react";
+import AttendanceTrendChart from "@/components/AttendanceTrendChart";
 
 export default function TeacherStudentsPage() {
   const [students, setStudents] = useState<any[]>([]);
@@ -11,6 +12,7 @@ export default function TeacherStudentsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPeriod, setSelectedPeriod] = useState<number | "All">("All");
+  const [showExportModal, setShowExportModal] = useState(false);
 
   useEffect(() => {
     fetch("/api/teacher/students")
@@ -70,16 +72,38 @@ export default function TeacherStudentsPage() {
     }
   };
 
+  const activeClassDetails = selectedPeriod !== "All" ? todayClasses.find(c => c.period === selectedPeriod) : null;
+  const currentClassStudents = activeClassDetails ? students.filter(s => s.computedClassId === activeClassDetails.classId) : students;
+  
+  const presentCount = currentClassStudents.filter(s => {
+    const rec = attendanceRecords.find(a => a.studentId === s.id && a.period === selectedPeriod);
+    return rec?.status === "PRESENT";
+  }).length;
+
+  const absentCount = currentClassStudents.filter(s => {
+    const rec = attendanceRecords.find(a => a.studentId === s.id && a.period === selectedPeriod);
+    return rec?.status === "ABSENT";
+  }).length;
+
   return (
     <main className="student-main">
       <header className="student-header">
         <div>
           <h1>My Students</h1>
-          <p className="student-subtitle">Manage and track student progress and attendance</p>
+          <p className="student-subtitle">Manage student progress and official 6-month historical attendance records</p>
         </div>
         <div className="student-course-info" style={{ display: "flex", gap: "1rem" }}>
-          <button style={{ backgroundColor: "var(--royal-blue)", color: "white", padding: "0.6rem 1.2rem", borderRadius: "8px", border: "none", fontWeight: "600", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <Users size={16} /> Add Student
+          <button 
+            onClick={() => {
+              if (selectedPeriod === "All") {
+                alert("Please select a specific period from the dropdown filter before exporting attendance.");
+                return;
+              }
+              setShowExportModal(true);
+            }}
+            style={{ backgroundColor: "var(--sky-blue)", color: "white", padding: "0.6rem 1.2rem", borderRadius: "8px", border: "none", fontWeight: "600", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.5rem", boxShadow: "0 4px 12px rgba(56, 189, 248, 0.3)" }}
+          >
+            <FileText size={16} /> Export Attendance PDF
           </button>
         </div>
       </header>
@@ -109,10 +133,15 @@ export default function TeacherStudentsPage() {
             <Filter size={24} />
           </div>
           <div>
-            <h3 style={{ fontSize: "1.8rem", fontWeight: "800", margin: 0, color: "var(--text-main)" }}>4</h3>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: "600" }}>Active Classes</p>
+            <h3 style={{ fontSize: "1.8rem", fontWeight: "800", margin: 0, color: "var(--text-main)" }}>{todayClasses.length}</h3>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: "600" }}>Today's Lectures</p>
           </div>
         </div>
+      </div>
+
+      {/* D3.js 6-Month Attendance Trends & Predictive Insights */}
+      <div style={{ marginBottom: "2rem" }}>
+        <AttendanceTrendChart classId={activeClassDetails?.classId || "II-CSE-A"} />
       </div>
 
       {/* Controls */}
@@ -133,14 +162,11 @@ export default function TeacherStudentsPage() {
             onChange={(e) => setSelectedPeriod(e.target.value === "All" ? "All" : Number(e.target.value))}
             style={{ padding: "0.8rem 1.2rem", borderRadius: "10px", border: "1px solid var(--border-subtle)", backgroundColor: "var(--bg-card)", color: "var(--text-main)", fontWeight: "600", cursor: "pointer", outline: "none" }}
           >
-            <option value="All">All Periods</option>
+            <option value="All">All Periods (Select Period to Mark Attendance)</option>
             {todayClasses.map(c => (
               <option key={c.id} value={c.period}>Period {c.period} ({c.classId} - {c.subjectCode})</option>
             ))}
           </select>
-          <button style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.8rem 1.2rem", borderRadius: "10px", border: "1px solid var(--border-subtle)", backgroundColor: "var(--bg-card)", color: "var(--text-main)", fontWeight: "600", cursor: "pointer" }}>
-            <Filter size={16} /> Filter
-          </button>
         </div>
       </div>
 
@@ -231,6 +257,136 @@ export default function TeacherStudentsPage() {
           </table>
         </div>
       </div>
+
+      {/* Official PDF Export Modal */}
+      {showExportModal && activeClassDetails && (
+        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "1rem" }}>
+          <div className="student-card premium-card" style={{ width: "100%", maxWidth: "800px", maxHeight: "90vh", overflowY: "auto", backgroundColor: "var(--bg-card)", position: "relative" }}>
+            
+            {/* Modal Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "1rem", marginBottom: "1.5rem" }}>
+              <h3 style={{ margin: 0, fontSize: "1.2rem", fontWeight: "700" }}>Official College Attendance Report Preview</h3>
+              <button onClick={() => setShowExportModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)" }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Printable Report Container */}
+            <div id="printable-attendance-report" style={{ backgroundColor: "#fff", color: "#000", padding: "2.5rem", borderRadius: "8px", fontFamily: "serif" }}>
+              
+              {/* College Header */}
+              <div style={{ textAlign: "center", borderBottom: "2px solid #1e3a8a", paddingBottom: "1rem", marginBottom: "1.5rem" }}>
+                <h2 style={{ margin: "0 0 0.25rem 0", fontSize: "1.35rem", fontWeight: "800", color: "#1e3a8a" }}>
+                  VEL TECH MULTI TECH
+                </h2>
+                <p style={{ margin: "0 0 0.25rem 0", fontSize: "0.85rem", fontWeight: "600", color: "#475569" }}>
+                  Dr. Rangarajan Dr. Sakunthala Engineering College
+                </p>
+                <p style={{ margin: 0, fontSize: "0.75rem", color: "#64748b" }}>
+                  (An Autonomous Institution | Approved by AICTE & Affiliated to Anna University)
+                </p>
+                <h3 style={{ margin: "1rem 0 0.25rem 0", fontSize: "1.1rem", fontWeight: "700", color: "#0f172a" }}>
+                  PERIOD-WISE ATTENDANCE REPORT (OFFICIAL RECORD)
+                </h3>
+              </div>
+
+              {/* Meta Info */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.5rem", fontSize: "0.9rem" }}>
+                <div>
+                  <p style={{ margin: "0 0 0.3rem 0" }}><strong>Date:</strong> {dateString}</p>
+                  <p style={{ margin: "0 0 0.3rem 0" }}><strong>Day Order:</strong> Day {activeClassDetails.dayOrder}</p>
+                  <p style={{ margin: 0 }}><strong>Period:</strong> Period {activeClassDetails.period} ({activeClassDetails.timeRange})</p>
+                </div>
+                <div>
+                  <p style={{ margin: "0 0 0.3rem 0" }}><strong>Class ID:</strong> {activeClassDetails.classId}</p>
+                  <p style={{ margin: "0 0 0.3rem 0" }}><strong>Subject:</strong> {activeClassDetails.subjectCode} - {activeClassDetails.subjectName}</p>
+                  <p style={{ margin: 0 }}><strong>Total Enrolled:</strong> {currentClassStudents.length}</p>
+                </div>
+              </div>
+
+              {/* Summary Stats */}
+              <div style={{ display: "flex", gap: "2rem", marginBottom: "1.5rem", padding: "0.75rem 1rem", backgroundColor: "#f8fafc", borderRadius: "6px", border: "1px solid #e2e8f0", fontSize: "0.9rem" }}>
+                <div><strong>Present:</strong> <span style={{ color: "#16a34a", fontWeight: "700" }}>{presentCount}</span></div>
+                <div><strong>Absent:</strong> <span style={{ color: "#dc2626", fontWeight: "700" }}>{absentCount}</span></div>
+                <div><strong>Percentage:</strong> <strong style={{ color: "#2563eb" }}>{currentClassStudents.length > 0 ? Math.round((presentCount / currentClassStudents.length) * 100) : 0}%</strong></div>
+              </div>
+
+              {/* Student Attendance Table */}
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", marginBottom: "2rem" }}>
+                <thead>
+                  <tr style={{ backgroundColor: "#f1f5f9", borderBottom: "2px solid #cbd5e1" }}>
+                    <th style={{ padding: "0.6rem 0.75rem", textAlign: "left", border: "1px solid #cbd5e1" }}>S.No</th>
+                    <th style={{ padding: "0.6rem 0.75rem", textAlign: "left", border: "1px solid #cbd5e1" }}>Roll No / VM No</th>
+                    <th style={{ padding: "0.6rem 0.75rem", textAlign: "left", border: "1px solid #cbd5e1" }}>Student Name</th>
+                    <th style={{ padding: "0.6rem 0.75rem", textAlign: "center", border: "1px solid #cbd5e1" }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const sections = [...new Set(currentClassStudents.map(s => s.studentProfile?.section || "N/A"))].sort();
+                    return sections.map(section => (
+                      <React.Fragment key={section}>
+                        <tr style={{ backgroundColor: "#f1f5f9" }}>
+                          <td colSpan={4} style={{ padding: "0.5rem 0.75rem", fontWeight: "800", border: "1px solid #cbd5e1", color: "#1e3a8a" }}>Section {section}</td>
+                        </tr>
+                        {currentClassStudents
+                          .filter(s => (s.studentProfile?.section || "N/A") === section)
+                          .sort((a, b) => a.name.localeCompare(b.name))
+                          .map((s, idx) => {
+                            const rec = attendanceRecords.find(a => a.studentId === s.id && a.period === selectedPeriod);
+                            const status = rec ? rec.status : "NOT MARKED";
+                            return (
+                              <tr key={s.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                                <td style={{ padding: "0.5rem 0.75rem", border: "1px solid #cbd5e1" }}>{idx + 1}</td>
+                                <td style={{ padding: "0.5rem 0.75rem", border: "1px solid #cbd5e1", fontWeight: "600" }}>{s.studentProfile?.rollNumber || s.vmNo || "N/A"}</td>
+                                <td style={{ padding: "0.5rem 0.75rem", border: "1px solid #cbd5e1" }}>{s.name}</td>
+                                <td style={{ padding: "0.5rem 0.75rem", textAlign: "center", border: "1px solid #cbd5e1", fontWeight: "700", color: status === "PRESENT" ? "#16a34a" : status === "ABSENT" ? "#dc2626" : "#64748b" }}>
+                                  {status}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </React.Fragment>
+                    ));
+                  })()}
+                </tbody>
+              </table>
+
+              {/* Signatures */}
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: "3rem", fontSize: "0.9rem" }}>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ borderBottom: "1px solid #000", width: "180px", marginBottom: "0.5rem", height: "30px" }}></div>
+                  <strong>Faculty Signature</strong>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ borderBottom: "1px solid #000", width: "180px", marginBottom: "0.5rem", height: "30px" }}></div>
+                  <strong>Head of Department (HOD)</strong>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "1rem", marginTop: "1.5rem" }}>
+              <button 
+                onClick={() => setShowExportModal(false)}
+                style={{ padding: "0.6rem 1.2rem", borderRadius: "8px", border: "1px solid var(--border-subtle)", backgroundColor: "transparent", color: "var(--text-main)", fontWeight: "600", cursor: "pointer" }}
+              >
+                Close
+              </button>
+              <button 
+                onClick={() => {
+                  window.print();
+                }}
+                style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.6rem 1.5rem", borderRadius: "8px", border: "none", backgroundColor: "var(--royal-blue)", color: "#fff", fontWeight: "700", cursor: "pointer", boxShadow: "0 4px 12px rgba(29, 78, 216, 0.3)" }}
+              >
+                <Printer size={16} /> Print / Save as PDF
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </main>
   );
 }

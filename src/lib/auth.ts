@@ -1,8 +1,7 @@
 import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import prisma from "@/lib/prisma"
-import bcrypt from "bcryptjs"
-import { decrypt } from "@/lib/encryption"
+import { verifyPassword } from "@/lib/encryption"
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -33,14 +32,7 @@ export const authOptions: NextAuthOptions = {
           }
 
           if (record && record.password) {
-            let isPasswordValid = await bcrypt.compare(inputPassword, record.password).catch(() => false);
-            if (!isPasswordValid && record.password === inputPassword) {
-              isPasswordValid = true;
-            }
-            if (!isPasswordValid && decrypt(record.password) === inputPassword) {
-              isPasswordValid = true;
-            }
-
+            const isPasswordValid = await verifyPassword(inputPassword, record.password);
             console.log("[Auth] Password match result:", isPasswordValid);
             if (isPasswordValid) {
               return {
@@ -57,14 +49,7 @@ export const authOptions: NextAuthOptions = {
           });
 
           if (userRec && userRec.password) {
-            let isValid = await bcrypt.compare(inputPassword, userRec.password).catch(() => false);
-            if (!isValid && userRec.password === inputPassword) {
-              isValid = true;
-            }
-            if (!isValid && decrypt(userRec.password) === inputPassword) {
-              isValid = true;
-            }
-
+            const isValid = await verifyPassword(inputPassword, userRec.password);
             if (isValid) {
               return {
                 id: userRec.id,

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Users, Megaphone, Calendar as CalendarIcon, BookOpen, Clock, ChevronRight, Activity, TrendingUp, CheckCircle, AlertCircle } from "lucide-react";
+import { Users, Megaphone, Calendar as CalendarIcon, BookOpen, Clock as ClockIcon, ChevronRight, Activity, TrendingUp, CheckCircle, AlertCircle } from "lucide-react";
 import Link from "next/link";
+import AcademicClock from "@/components/Clock";
 import OverallTimetable from "@/components/OverallTimetable";
 
 export default function TeacherDashboardPage() {
@@ -75,11 +76,14 @@ export default function TeacherDashboardPage() {
           <div className="student-date" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
             <CalendarIcon size={14} /> {dateStr} 
             <span style={{ color: "var(--border-subtle)" }}>|</span> 
-            <Clock size={14} /> {timeStr}
+            <ClockIcon size={14} /> {timeStr}
             <span style={{ color: "var(--border-subtle)" }}>|</span>
             <span style={{ backgroundColor: "rgba(56, 189, 248, 0.1)", color: "var(--sky-blue)", padding: "0.1rem 0.5rem", borderRadius: "4px", fontWeight: "700" }}>
               {data?.currentDayOrder === "Leave" ? "Leave / Holiday" : `Day Order ${data?.currentDayOrder || "III"}`}
             </span>
+            <div style={{ marginLeft: "1rem" }}>
+              <AcademicClock size={40} subtext="" />
+            </div>
           </div>
           <h1>Welcome back, <span style={{ background: "linear-gradient(90deg, var(--royal-blue), var(--sky-blue))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{data?.teacher?.name ? data.teacher.name.split(" ")[0] : "Faculty"}</span> 👋</h1>
         </div>
@@ -169,19 +173,10 @@ export default function TeacherDashboardPage() {
               )}
             </div>
             
-            {/* Visual Element */}
-            {isCollegeHours && happeningNow && (
-              <div style={{ position: "relative", width: "120px", height: "120px", flexShrink: 0 }}>
-                <svg viewBox="0 0 120 120" style={{ transform: "rotate(-90deg)" }}>
-                  <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="8" />
-                  <circle cx="60" cy="60" r="50" fill="none" stroke="#22c55e" strokeWidth="8" strokeDasharray="314.15" strokeDashoffset="150" strokeLinecap="round" style={{ transition: "stroke-dashoffset 1s ease" }} />
-                </svg>
-                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                  <span style={{ fontSize: "1.5rem", fontWeight: "800", color: "#fff" }}>P{activePeriod}</span>
-                  <span style={{ fontSize: "0.7rem", fontWeight: "600", color: "rgba(255,255,255,0.7)" }}>ACTIVE</span>
-                </div>
-              </div>
-            )}
+            {/* Real-time Dynamic Academic Clock */}
+            <div style={{ flexShrink: 0 }}>
+              <AcademicClock size={125} subtext={isCollegeHours && happeningNow ? `PERIOD ${activePeriod}` : "BELL CLOCK"} />
+            </div>
           </div>
 
           {/* Today's Schedule & Day Switcher */}
@@ -309,7 +304,7 @@ export default function TeacherDashboardPage() {
           {/* Up Next Mini Card */}
           <div className="student-card premium-card" style={{ display: "flex", flexDirection: "column", backgroundColor: "var(--bg-card-header)" }}>
             <div style={{ fontSize: "0.75rem", fontWeight: "700", color: "var(--text-muted)", letterSpacing: "0.05em", marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-              <Clock size={14} /> UP NEXT (P{activePeriod + 1})
+              <ClockIcon size={14} /> UP NEXT (P{activePeriod + 1})
             </div>
             <h3 style={{ fontSize: "1.2rem", fontWeight: "800", color: "var(--text-main)", margin: "0 0 0.5rem 0" }}>{upNext ? upNext.subjectName : "No Classes"}</h3>
             {upNext ? (

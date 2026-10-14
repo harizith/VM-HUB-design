@@ -25,8 +25,8 @@ export async function GET(request: Request) {
       }
     });
 
-    const holidaysSetting = settings.find(s => s.key === 'HOLIDAYS');
-    const workingWeekendsSetting = settings.find(s => s.key === 'WORKING_WEEKENDS');
+    const holidaysSetting = settings.find((s: { key: string }) => s.key === 'HOLIDAYS');
+    const workingWeekendsSetting = settings.find((s: { key: string }) => s.key === 'WORKING_WEEKENDS');
 
     let holidays: string[] = [];
     let workingWeekends: string[] = [];
@@ -89,8 +89,8 @@ export async function POST(request: Request) {
       }
     });
 
-    const holidaysSetting = settings.find(s => s.key === 'HOLIDAYS');
-    const workingWeekendsSetting = settings.find(s => s.key === 'WORKING_WEEKENDS');
+    const holidaysSetting = settings.find((s: { key: string }) => s.key === 'HOLIDAYS');
+    const workingWeekendsSetting = settings.find((s: { key: string }) => s.key === 'WORKING_WEEKENDS');
 
     let holidays: string[] = [];
     let workingWeekends: string[] = [];

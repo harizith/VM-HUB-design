@@ -1,18 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Briefcase, Users, Activity } from "lucide-react";
+import { Briefcase, Users, Activity, FileSpreadsheet, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 
 export default function DepartmentPage() {
   const [dept, setDept] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     fetch("/api/admin/departments")
       .then(r => r.json())
       .then(res => {
         if (res.success && res.departments.length > 0) {
-          // just taking the first one or finding CSE for demo
           setDept(res.departments.find((d:any) => d.code === "CSE") || res.departments[0]);
         }
         setLoading(false);
@@ -23,13 +24,49 @@ export default function DepartmentPage() {
       });
   }, []);
 
+  const handleExportAll = async () => {
+    if (!dept) return;
+    setExporting(true);
+    try {
+      const res = await fetch(`/api/hod/attendance/export?departmentCode=${dept.code}`);
+      const { data } = await res.json();
+      
+      const worksheetData = data.students.map((s: any) => ({
+        "Roll No": s.studentProfile?.rollNumber || s.vmNo || "N/A",
+        "Name": s.name,
+        "Section": s.studentProfile?.section || "N/A",
+        "Total Present": data.attendance.filter((a: any) => a.studentId === s.id && a.status === "PRESENT").length,
+        "Total Absent": data.attendance.filter((a: any) => a.studentId === s.id && a.status === "ABSENT").length,
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "AttendanceSummary");
+      XLSX.writeFile(workbook, `Attendance_Summary_${dept.code}.xlsx`);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to export attendance");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div style={{ padding: "2rem" }}>
-      <header style={{ marginBottom: "2rem" }}>
-        <h1 style={{ fontSize: "2rem", margin: "0 0 0.5rem 0", background: "linear-gradient(90deg, #10b981, #34d399)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-          Department Overview
-        </h1>
-        <p style={{ color: "var(--text-muted)", margin: 0 }}>View department statistics and details.</p>
+      <header style={{ marginBottom: "2rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <h1 style={{ fontSize: "2rem", margin: "0 0 0.5rem 0", background: "linear-gradient(90deg, #10b981, #34d399)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+            Department Overview
+          </h1>
+          <p style={{ color: "var(--text-muted)", margin: 0 }}>View department statistics and details.</p>
+        </div>
+        <button 
+          onClick={handleExportAll}
+          disabled={exporting}
+          style={{ backgroundColor: "var(--royal-blue)", color: "white", padding: "0.8rem 1.2rem", borderRadius: "10px", border: "none", fontWeight: "600", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.5rem" }}
+        >
+          {exporting ? "Generating..." : <><FileSpreadsheet size={18} /> Export All Student Attendance</>}
+        </button>
       </header>
 
       {loading ? (
@@ -81,3 +118,4 @@ export default function DepartmentPage() {
     </div>
   );
 }
+

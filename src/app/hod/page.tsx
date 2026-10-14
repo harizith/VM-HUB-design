@@ -2,9 +2,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Users, Megaphone, Calendar as CalendarIcon, BookOpen, Clock, ChevronRight, Activity, TrendingUp, CheckCircle, Briefcase } from "lucide-react";
+import { Users, Megaphone, Calendar as CalendarIcon, BookOpen, Clock as ClockIcon, ChevronRight, Activity, TrendingUp, CheckCircle, Briefcase } from "lucide-react";
 import Link from "next/link";
+import AcademicClock from "@/components/Clock";
 import OverallTimetable from "@/components/OverallTimetable";
+import Heatmap from "@/components/Heatmap";
 
 export default function HodDashboardPage() {
   const [mounted, setMounted] = useState(false);
@@ -116,11 +118,14 @@ export default function HodDashboardPage() {
           <div className="student-date" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
             <CalendarIcon size={14} /> {dateStr}
             <span style={{ color: "var(--border-subtle)" }}>|</span>
-            <Clock size={14} /> {timeStr}
+            <ClockIcon size={14} /> {timeStr}
             <span style={{ color: "var(--border-subtle)" }}>|</span>
             <span style={{ backgroundColor: "rgba(56, 189, 248, 0.1)", color: "var(--sky-blue)", padding: "0.1rem 0.5rem", borderRadius: "4px", fontWeight: "700" }}>
               {data?.currentDayOrder === "Leave" ? "Leave / Holiday" : `Day Order ${data?.currentDayOrder || "III"}`}
             </span>
+            <div style={{ marginLeft: "1rem" }}>
+              <AcademicClock size={40} subtext="" />
+            </div>
           </div>
           <h1>Welcome back, <span style={{ background: "linear-gradient(90deg, var(--royal-blue), var(--sky-blue))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{data?.hod?.name ? data.hod.name.split(" ")[0] : "HOD"}</span> 👋</h1>
         </div>
@@ -160,6 +165,12 @@ export default function HodDashboardPage() {
           </div>
         </div>
       </div>
+      
+      {/* Attendance Heatmap */}
+      <div className="student-card premium-card" style={{ marginBottom: "2rem", padding: "1.5rem" }}>
+        <h3 style={{ fontSize: "1rem", fontWeight: "700", color: "var(--text-main)", marginBottom: "1rem" }}>Departmental Attendance Heatmap</h3>
+        <Heatmap />
+      </div>
 
       {/* Main Grid Section */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 350px", gap: "1.5rem", marginBottom: "2rem" }}>
@@ -198,23 +209,10 @@ export default function HodDashboardPage() {
               </div>
             </div>
 
-            {/* Visual Element */}
-            {isCollegeHours && happeningNow ? (
-              <div style={{ position: "relative", width: "120px", height: "120px", flexShrink: 0 }}>
-                <svg viewBox="0 0 120 120" style={{ transform: "rotate(-90deg)" }}>
-                  <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="8" />
-                  <circle cx="60" cy="60" r="50" fill="none" stroke="#22c55e" strokeWidth="8" strokeDasharray="314.15" strokeDashoffset="150" strokeLinecap="round" style={{ transition: "stroke-dashoffset 1s ease" }} />
-                </svg>
-                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                  <span style={{ fontSize: "1.5rem", fontWeight: "800", color: "#fff" }}>P{activePeriod}</span>
-                  <span style={{ fontSize: "0.7rem", fontWeight: "600", color: "rgba(255,255,255,0.7)" }}>ACTIVE</span>
-                </div>
-              </div>
-            ) : (
-              <div style={{ position: "relative", width: "120px", height: "120px", flexShrink: 0 }}>
-                <Briefcase size={80} color="rgba(255,255,255,0.2)" style={{ margin: "20px" }} />
-              </div>
-            )}
+            {/* Real-time Dynamic Academic Clock */}
+            <div style={{ flexShrink: 0 }}>
+              <AcademicClock size={125} subtext={isCollegeHours && happeningNow ? `PERIOD ${activePeriod}` : "EXECUTIVE"} />
+            </div>
           </div>
 
           {/* Today's Schedule & Day Switcher */}

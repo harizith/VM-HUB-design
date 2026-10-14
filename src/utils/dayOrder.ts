@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
+import { DayOrderInfo } from "@/types/academic";
 
-export async function getDayOrderInfo() {
+export async function getDayOrderInfo(): Promise<DayOrderInfo> {
   let baseDateStr = '2026-09-13T00:00:00';
   let baseIndex = 2; // Day Order III (0-based: I=0, II=1, III=2, IV=3, V=4)
   
@@ -14,10 +15,10 @@ export async function getDayOrderInfo() {
       }
     });
 
-    const baseDateSetting = settings.find(s => s.key === 'DAY_ORDER_BASE_DATE');
-    const baseIndexSetting = settings.find(s => s.key === 'DAY_ORDER_BASE_INDEX');
-    const holidaysSetting = settings.find(s => s.key === 'HOLIDAYS');
-    const workingWeekendsSetting = settings.find(s => s.key === 'WORKING_WEEKENDS');
+    const baseDateSetting = settings.find((s: { key: string }) => s.key === 'DAY_ORDER_BASE_DATE');
+    const baseIndexSetting = settings.find((s: { key: string }) => s.key === 'DAY_ORDER_BASE_INDEX');
+    const holidaysSetting = settings.find((s: { key: string }) => s.key === 'HOLIDAYS');
+    const workingWeekendsSetting = settings.find((s: { key: string }) => s.key === 'WORKING_WEEKENDS');
 
     if (baseDateSetting) baseDateStr = baseDateSetting.value;
     if (baseIndexSetting) baseIndex = parseInt(baseIndexSetting.value, 10);

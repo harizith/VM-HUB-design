@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Users, Megaphone, Calendar as CalendarIcon } from "lucide-react";
 import OverallTimetable from "@/components/OverallTimetable";
+import Clock from "@/components/Clock";
 
 export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
@@ -61,7 +62,10 @@ export default function DashboardPage() {
       <header className="student-header">
         <div>
           <div className="student-date">{dateStr} • {data?.currentDayOrder === "Leave" ? "Leave / Holiday" : `Day Order ${data?.currentDayOrder || "III"}`}</div>
-          <h1>Hey {data?.student?.name ? data.student.name : "Student"}</h1>
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+            <h1>Hey {data?.student?.name ? data.student.name : "Student"}</h1>
+            <Clock size={40} subtext="" />
+          </div>
         </div>
         <div className="student-course-info">
           <strong>{data?.student?.department || "B.E CSE"}</strong>
@@ -73,18 +77,9 @@ export default function DashboardPage() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1.5rem", marginBottom: "2rem" }}>
         {/* Happening Now Banner */}
         <div className="student-banner">
-          {/* Progress Ring */}
-          <div style={{ position: "relative", width: "120px", height: "120px", flexShrink: 0 }}>
-            <svg viewBox="0 0 120 120" style={{ transform: "rotate(-90deg)" }}>
-              <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="10" />
-              {/* Stroke Dasharray: 2 * Math.PI * 50 = 314.15 */}
-              <circle cx="60" cy="60" r="50" fill="none" stroke="#f59e0b" strokeWidth="10" strokeDasharray="314.15" strokeDashoffset="100" strokeLinecap="round" />
-            </svg>
-            <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
-              <span style={{ fontSize: "0.6rem", fontWeight: "700", letterSpacing: "0.05em", color: "rgba(255,255,255,0.7)" }}>PERIOD {activePeriod || 1}</span>
-              <span style={{ fontSize: "1.1rem", fontWeight: "800", color: "#fff" }}>-- min</span>
-              <span style={{ fontSize: "0.7rem", fontWeight: "600", color: "rgba(255,255,255,0.7)" }}>left</span>
-            </div>
+          {/* Real-time Dynamic Academic Clock */}
+          <div style={{ flexShrink: 0 }}>
+            <Clock size={125} subtext={activePeriod ? `PERIOD ${activePeriod}` : "COLLEGE"} />
           </div>
           
           <div style={{ zIndex: 1 }}>

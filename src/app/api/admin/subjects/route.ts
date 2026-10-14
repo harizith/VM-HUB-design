@@ -43,14 +43,14 @@ export async function GET(req: Request) {
       console.error(e);
     }
 
-    const enhancedSubjects = subjects.map(sub => {
-      const related = timetableEntries.filter(t => t.subjectCode.toUpperCase() === sub.code.toUpperCase());
-      const classesTaking = Array.from(new Set(related.map(t => t.classId).filter(Boolean)));
-      const facultiesHandling = Array.from(new Set(related.map(t => t.facultyName).filter(Boolean)));
-      const rooms = Array.from(new Set(related.map(t => t.roomNo).filter(Boolean)));
+    const enhancedSubjects = subjects.map((sub: { code: string; [key: string]: any }) => {
+      const related = timetableEntries.filter((t: { subjectCode: string; [key: string]: any }) => t.subjectCode.toUpperCase() === sub.code.toUpperCase());
+      const classesTaking = Array.from(new Set(related.map((t: { classId: string }) => t.classId).filter(Boolean)));
+      const facultiesHandling = Array.from(new Set(related.map((t: { facultyName: string }) => t.facultyName).filter(Boolean)));
+      const rooms = Array.from(new Set(related.map((t: { roomNo: string }) => t.roomNo).filter(Boolean)));
       const weeklyHours = related.length;
       
-      const scheduleSlots = related.map(r => ({
+      const scheduleSlots = related.map((r: { dayOrder: string; period: number; timeRange: string; classId: string; roomNo: string; facultyName: string }) => ({
         dayOrder: r.dayOrder,
         period: r.period,
         classId: r.classId,

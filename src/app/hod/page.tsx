@@ -127,7 +127,7 @@ export default function HodDashboardPage() {
               <AcademicClock size={40} subtext="" />
             </div>
           </div>
-          <h1 style={{ fontSize: "1.75rem", fontWeight: "700", color: "var(--text-main)", marginTop: "0.25rem" }}>HOD Executive Dashboard • {data?.hod?.name || "Head of Department"}</h1>
+          <h1>Welcome back, <span style={{ background: "linear-gradient(90deg, var(--royal-blue), var(--sky-blue))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{data?.hod?.name ? data.hod.name.split(" ")[0] : "HOD"}</span> 👋</h1>
         </div>
         <div className="student-course-info" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.25rem" }}>
           <strong style={{ fontSize: "1rem" }}>Department of {data?.hod?.department || "CSE"}</strong>
@@ -166,21 +166,9 @@ export default function HodDashboardPage() {
         </div>
       </div>
       
-      {/* Campus-Wide Departmental Attendance Performance Heatmap */}
+      {/* Attendance Heatmap */}
       <div className="student-card premium-card" style={{ marginBottom: "2rem", padding: "1.5rem" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.25rem", flexWrap: "wrap", gap: "0.5rem" }}>
-          <div>
-            <h3 style={{ fontSize: "1.15rem", fontWeight: "700", color: "var(--text-main)", margin: "0 0 0.25rem 0" }}>
-              Campus-Wide Attendance Heatmap &amp; Department Performance Matrix
-            </h3>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
-              Semester-wide attendance distribution across academic departments • Anna University 75% minimum eligibility compliance
-            </p>
-          </div>
-          <span style={{ fontSize: "0.75rem", padding: "0.25rem 0.75rem", borderRadius: "9999px", backgroundColor: "rgba(16, 185, 129, 0.15)", color: "#10b981", fontWeight: "700" }}>
-            Odd Semester 2026-27 Active
-          </span>
-        </div>
+        <h3 style={{ fontSize: "1rem", fontWeight: "700", color: "var(--text-main)", marginBottom: "1rem" }}>Departmental Attendance Heatmap</h3>
         <Heatmap />
       </div>
 

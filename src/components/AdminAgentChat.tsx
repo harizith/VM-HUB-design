@@ -1,16 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { X, Send, Database, Loader2, Paperclip, Terminal } from "lucide-react";
+import { MessageSquare, X, Send, Database, Loader2, Paperclip } from "lucide-react";
 import * as XLSX from "xlsx";
 
 export default function AdminAgentChat({ onTimetableUpdated }: { onTimetableUpdated?: () => void }) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<{ role: "user" | "agent"; content: string; data?: any }[]>([
-    {
-      role: "agent",
-      content: "Connected to VM-HUB ERP Operations Console (v4.8.2). Execute administrative queries, bulk data mutations, or attach institutional Excel files for batch processing (e.g., 'Update user designation to Professor', 'Find all faculty in CSE department', 'Show timetable entries for Day Order III')."
-    }
+    { role: "agent", content: "Hello! I am your fully autonomous AI agent. Ask me to add, edit, update, delete, or search data (e.g., 'Update John to be an ADMIN', 'Delete all notices from yesterday')." }
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -44,13 +41,13 @@ export default function AdminAgentChat({ onTimetableUpdated }: { onTimetableUpda
           const ws = wb.Sheets[wsname];
           const data = XLSX.utils.sheet_to_json(ws);
           setAttachedData(data);
-          setMessages(prev => [...prev, { role: "agent", content: `(Attached ${file.name} with ${data.length} records. Ready to execute bulk import or verification.)` }]);
+          setMessages(prev => [...prev, { role: "agent", content: `(Attached ${file.name} with ${data.length} rows. You can now ask me to import or process this data!)` }]);
         }
         setIsLoading(false);
       };
       reader.readAsBinaryString(file);
     } catch (err) {
-      setMessages(prev => [...prev, { role: "agent", content: "Failed to parse spreadsheet file." }]);
+      setMessages(prev => [...prev, { role: "agent", content: "Failed to parse excel file." }]);
       setIsLoading(false);
     } finally {
       if (e.target) e.target.value = '';
@@ -87,10 +84,11 @@ export default function AdminAgentChat({ onTimetableUpdated }: { onTimetableUpda
       
       setMessages(prev => [...prev, { 
         role: "agent", 
-        content: data.reply || "Operation completed.", 
+        content: data.reply || "Done.", 
         data: data.data 
       }]);
       
+      // Clear attached data after sending
       if (attachedData) {
         setAttachedData(null);
         setAttachedFileName(null);
@@ -100,7 +98,7 @@ export default function AdminAgentChat({ onTimetableUpdated }: { onTimetableUpda
         onTimetableUpdated();
       }
     } catch (error) {
-      setMessages(prev => [...prev, { role: "agent", content: "Error executing database command." }]);
+      setMessages(prev => [...prev, { role: "agent", content: "Error connecting to local agent." }]);
     } finally {
       setIsLoading(false);
     }
@@ -108,32 +106,27 @@ export default function AdminAgentChat({ onTimetableUpdated }: { onTimetableUpda
 
   if (!isOpen) {
     return (
-      <button
+      <button 
         onClick={() => setIsOpen(true)}
         style={{
           position: "fixed",
-          bottom: "1.5rem",
-          right: "1.5rem",
+          bottom: "2rem",
+          right: "2rem",
           backgroundColor: "var(--royal-blue)",
           color: "white",
-          border: "none",
-          borderRadius: "9999px",
-          padding: "0.75rem 1.25rem",
+          borderRadius: "50%",
+          width: "60px",
+          height: "60px",
           display: "flex",
+          justifyContent: "center",
           alignItems: "center",
-          gap: "0.5rem",
-          boxShadow: "0 4px 20px rgba(29, 78, 216, 0.4)",
+          boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
           cursor: "pointer",
-          zIndex: 9999,
-          fontWeight: "600",
-          fontSize: "0.85rem",
-          transition: "transform 0.2s ease"
+          border: "none",
+          zIndex: 9999
         }}
-        onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.05)"}
-        onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
       >
-        <Terminal size={18} />
-        DB Console
+        <Database size={28} />
       </button>
     );
   }
@@ -141,149 +134,111 @@ export default function AdminAgentChat({ onTimetableUpdated }: { onTimetableUpda
   return (
     <div style={{
       position: "fixed",
-      bottom: "1.5rem",
-      right: "1.5rem",
-      width: "420px",
-      maxWidth: "calc(100vw - 3rem)",
-      height: "540px",
+      bottom: "2rem",
+      right: "2rem",
+      width: "380px",
+      height: "550px",
       backgroundColor: "var(--bg-card)",
-      borderRadius: "14px",
-      boxShadow: "0 10px 40px rgba(0,0,0,0.5)",
+      borderRadius: "16px",
+      boxShadow: "0 10px 40px rgba(0,0,0,0.3)",
       display: "flex",
       flexDirection: "column",
       border: "1px solid var(--border-subtle)",
       zIndex: 9999,
       overflow: "hidden"
     }}>
-      {/* Console Header */}
+      {/* Header */}
       <div style={{
-        padding: "0.85rem 1rem",
-        backgroundColor: "#1e293b",
+        padding: "1rem",
+        backgroundColor: "var(--royal-blue)",
         color: "white",
         display: "flex",
         justifyContent: "space-between",
-        alignItems: "center",
-        borderBottom: "1px solid var(--border-subtle)"
+        alignItems: "center"
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontWeight: "700", fontSize: "0.85rem" }}>
-          <Database size={16} className="text-blue-400" />
-          ERP Operations Console
-          <span style={{ fontSize: "0.7rem", padding: "0.1rem 0.4rem", borderRadius: "4px", backgroundColor: "rgba(56, 189, 248, 0.15)", color: "var(--sky-blue)" }}>
-            v4.8
-          </span>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontWeight: "600" }}>
+          <Database size={18} />
+          Local DB Agent
         </div>
         <button 
           onClick={() => setIsOpen(false)}
-          style={{ background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center" }}
+          style={{ background: "transparent", border: "none", color: "white", cursor: "pointer" }}
         >
-          <X size={18} />
+          <X size={20} />
         </button>
       </div>
 
-      {/* Messages Window */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.85rem", backgroundColor: "var(--bg-page)" }}>
+      {/* Messages */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column", gap: "1rem", backgroundColor: "var(--bg-main)" }}>
         {messages.map((m, i) => (
           <div key={i} style={{ 
             alignSelf: m.role === "user" ? "flex-end" : "flex-start",
-            maxWidth: "88%"
+            maxWidth: "85%"
           }}>
             <div style={{
-              padding: "0.65rem 0.85rem",
-              borderRadius: "8px",
-              backgroundColor: m.role === "user" ? "var(--royal-blue)" : "var(--bg-input)",
-              color: m.role === "user" ? "#ffffff" : "var(--text-main)",
+              padding: "0.75rem 1rem",
+              borderRadius: "12px",
+              backgroundColor: m.role === "user" ? "var(--sky-blue)" : "var(--bg-input)",
+              color: m.role === "user" ? "white" : "var(--text-main)",
               border: m.role === "agent" ? "1px solid var(--border-subtle)" : "none",
-              fontSize: "0.825rem",
-              lineHeight: "1.45",
-              whiteSpace: "pre-wrap",
-              fontFamily: m.role === "agent" ? "inherit" : "inherit"
+              fontSize: "0.9rem",
+              lineHeight: "1.4",
+              whiteSpace: "pre-wrap"
             }}>
               {m.content}
             </div>
             {m.data && m.data.sqlQuery && (
               <div style={{ 
-                marginTop: "0.4rem", 
+                marginTop: "0.5rem", 
                 display: "flex", 
                 flexDirection: "column", 
-                gap: "0.4rem",
-                maxHeight: "240px",
+                gap: "0.5rem",
+                maxHeight: "300px",
                 overflowY: "auto",
+                paddingRight: "0.25rem"
               }}>
-                <div style={{ padding: "0.4rem 0.6rem", backgroundColor: "#020617", borderRadius: "6px", border: "1px solid var(--border-subtle)" }}>
-                  <span style={{ fontSize: "0.7rem", color: "var(--sky-blue)", fontFamily: "monospace" }}>Query Executed:</span>
-                  <pre style={{ margin: "0.2rem 0 0 0", fontSize: "0.7rem", color: "#94a3b8", overflowX: "auto" }}>
-                    {m.data.sqlQuery}
-                  </pre>
+                <div style={{ padding: "0.5rem", backgroundColor: "var(--bg-input)", borderRadius: "8px", border: "1px solid var(--border-subtle)" }}>
+                   <div style={{ fontSize: "0.75rem", fontFamily: "monospace", color: "var(--text-muted)", marginBottom: "4px" }}>SQL Executed:</div>
+                   <div style={{ fontSize: "0.8rem", color: "var(--royal-blue)", fontFamily: "monospace" }}>{m.data.sqlQuery}</div>
                 </div>
-                {m.data.records && m.data.records.length > 0 && (
-                  <div style={{ overflowX: "auto", border: "1px solid var(--border-subtle)", borderRadius: "6px" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.7rem", textAlign: "left" }}>
-                      <thead>
-                        <tr style={{ backgroundColor: "var(--bg-card-header)" }}>
-                          {Object.keys(m.data.records[0]).slice(0, 4).map(k => (
-                            <th key={k} style={{ padding: "0.3rem 0.5rem", borderBottom: "1px solid var(--border-subtle)", color: "var(--text-muted)" }}>{k}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {m.data.records.slice(0, 5).map((row: any, idx: number) => (
-                          <tr key={idx} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                            {Object.keys(m.data.records[0]).slice(0, 4).map(k => (
-                              <td key={k} style={{ padding: "0.3rem 0.5rem", color: "var(--text-main)" }}>{String(row[k])}</td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
               </div>
             )}
           </div>
         ))}
         {isLoading && (
-          <div style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: "0.5rem", color: "var(--text-muted)", fontSize: "0.8rem", padding: "0.5rem" }}>
-            <Loader2 size={14} className="animate-spin" />
-            Executing database operation...
+          <div style={{ alignSelf: "flex-start", padding: "0.75rem", color: "var(--text-muted)" }}>
+            <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Attached File Pill */}
       {attachedFileName && (
-        <div style={{ padding: "0.4rem 0.75rem", backgroundColor: "rgba(56, 189, 248, 0.1)", borderTop: "1px solid var(--border-subtle)", fontSize: "0.75rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ color: "var(--sky-blue)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
-            Attached: {attachedFileName} ({attachedData?.length} records)
-          </span>
-          <button onClick={() => { setAttachedData(null); setAttachedFileName(null); }} style={{ background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer" }}>
+        <div style={{ padding: "0.5rem 1rem", backgroundColor: "var(--bg-main)", borderTop: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ fontSize: "0.8rem", color: "var(--royal-blue)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <Paperclip size={14} /> Attached: {attachedFileName}
+          </div>
+          <button onClick={() => { setAttachedData(null); setAttachedFileName(null); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)" }}>
             <X size={14} />
           </button>
         </div>
       )}
 
-      {/* Input Tray */}
-      <div style={{
-        padding: "0.6rem 0.75rem",
-        backgroundColor: "var(--bg-card)",
-        borderTop: "1px solid var(--border-subtle)",
-        display: "flex",
-        alignItems: "center",
-        gap: "0.5rem"
-      }}>
-        <label 
-          title="Attach Excel file for bulk operations"
-          style={{
-            cursor: "pointer",
-            padding: "0.5rem",
-            borderRadius: "6px",
+      {/* Input */}
+      <div style={{ padding: "1rem", borderTop: "1px solid var(--border-subtle)", display: "flex", gap: "0.5rem", backgroundColor: "var(--bg-card)" }}>
+        <label style={{
+            padding: "0.75rem",
+            borderRadius: "8px",
             backgroundColor: "var(--bg-input)",
-            border: "1px solid var(--border-subtle)",
+            color: "var(--text-main)",
+            cursor: "pointer",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            color: "var(--text-muted)"
+            border: "1px solid var(--border-subtle)",
           }}>
-          <Paperclip size={15} />
+          <Paperclip size={18} />
           <input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} style={{ display: "none" }} />
         </label>
         <input 
@@ -291,24 +246,23 @@ export default function AdminAgentChat({ onTimetableUpdated }: { onTimetableUpda
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === "Enter" && handleSend()}
-          placeholder="Execute administrative command or query..."
+          placeholder="Ask me to add, update, delete, or fetch data..."
           style={{
             flex: 1,
-            padding: "0.6rem 0.75rem",
-            borderRadius: "6px",
+            padding: "0.75rem",
+            borderRadius: "8px",
             border: "1px solid var(--border-subtle)",
             backgroundColor: "var(--bg-input)",
             color: "var(--text-main)",
-            outline: "none",
-            fontSize: "0.825rem"
+            outline: "none"
           }}
         />
         <button 
           onClick={handleSend}
           disabled={!input.trim() || isLoading}
           style={{
-            padding: "0.6rem 0.75rem",
-            borderRadius: "6px",
+            padding: "0.75rem",
+            borderRadius: "8px",
             backgroundColor: "var(--royal-blue)",
             color: "white",
             border: "none",
@@ -319,7 +273,7 @@ export default function AdminAgentChat({ onTimetableUpdated }: { onTimetableUpda
             opacity: (!input.trim() || isLoading) ? 0.6 : 1
           }}
         >
-          <Send size={15} />
+          <Send size={18} />
         </button>
       </div>
     </div>

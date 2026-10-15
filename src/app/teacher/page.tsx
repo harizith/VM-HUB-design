@@ -85,7 +85,7 @@ export default function TeacherDashboardPage() {
               <AcademicClock size={40} subtext="" />
             </div>
           </div>
-          <h1 style={{ fontSize: "1.75rem", fontWeight: "700", color: "var(--text-main)", marginTop: "0.25rem" }}>Faculty Portal • {data?.teacher?.name || "Faculty Member"}</h1>
+          <h1>Welcome back, <span style={{ background: "linear-gradient(90deg, var(--royal-blue), var(--sky-blue))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{data?.teacher?.name ? data.teacher.name.split(" ")[0] : "Faculty"}</span> 👋</h1>
         </div>
         <div className="student-course-info" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.25rem" }}>
           <strong style={{ fontSize: "1rem" }}>Department of {data?.teacher?.department || "CSE"}</strong>

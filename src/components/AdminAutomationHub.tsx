@@ -143,14 +143,14 @@ export default function AdminAutomationHub() {
               </span>
             </div>
             <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
-              Verifies that all user account credentials adhere to salted bcrypt cryptographic standards and that automated SQL injection guardrails actively enforce read-only query protections.
+              Verifies that all user account passwords utilize salted bcrypt hashes and that AI query guards are actively enforcing read-only query protections.
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", fontSize: "0.85rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <CheckCircle2 size={16} color="#22c55e" /> Salted Bcrypt Password Hashing Active
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <CheckCircle2 size={16} color="#22c55e" /> Enterprise SQL Injection &amp; Read-Only Guardrails Active
+                <CheckCircle2 size={16} color="#22c55e" /> AI Agent Read-Only SQL Guardrails Active
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <CheckCircle2 size={16} color="#22c55e" /> NextAuth RBAC Edge Middleware Active

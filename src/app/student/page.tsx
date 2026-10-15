@@ -63,13 +63,13 @@ export default function DashboardPage() {
         <div>
           <div className="student-date">{dateStr} • {data?.currentDayOrder === "Leave" ? "Leave / Holiday" : `Day Order ${data?.currentDayOrder || "III"}`}</div>
           <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-            <h1 style={{ fontSize: "1.75rem", fontWeight: "700" }}>Student Portal • {data?.student?.name ? data.student.name : "Student"}</h1>
+            <h1>Hey {data?.student?.name ? data.student.name : "Student"}</h1>
             <Clock size={40} subtext="" />
           </div>
         </div>
         <div className="student-course-info">
-          <strong>{data?.student?.department || "Computer Science & Engineering"}</strong>
-          Semester {data?.student?.semester || 5} - Section {data?.student?.section || "A"} • Reg No: {data?.student?.rollNumber || data?.student?.vmNo || "211421104001"}
+          <strong>{data?.student?.department || "B.E CSE"}</strong>
+          Semester {data?.student?.semester || 5} - Section {data?.student?.section || "A"}
         </div>
       </header>
 

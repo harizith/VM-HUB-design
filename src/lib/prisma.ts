@@ -475,7 +475,7 @@ try {
     if (process.env.NODE_ENV !== "production") globalThis.prismaGlobal = realPrisma;
   }
 } catch {
-  console.warn("[ERP Engine] Database connection using local persistent memory store.");
+  console.warn("[AI Studio] Real database connection failed. Falling back to in-memory store.");
 }
 
 // Proxied prisma export: tries real prisma first if initialized, falls back to in-memory store seamlessly

@@ -575,7 +575,7 @@ export default function AdminPage() {
               { id: "timetable", label: "Timetables", Icon: Calendar, count: 0 },
               { id: "upload-timetable", label: "Upload Timetable PDF", Icon: FileText, count: 0 },
               { id: "upload-users", label: "Bulk User Onboarding", Icon: UserPlus, count: 0 },
-              { id: "automation", label: "Operations & Retention", Icon: Zap, count: 0 },
+              { id: "automation", label: "Automation Engine", Icon: Zap, count: 0 },
               { id: "audit", label: "Audit Trail", Icon: Shield, count: auditLogs.length },
             ].map((nav) => (
               <button key={nav.id} onClick={() => { setActiveTab(nav.id as any); setSelectedUser(null); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", padding: "0.7rem 0.9rem", borderRadius: "8px", border: "none", cursor: "pointer", fontWeight: "600", fontSize: "0.85rem", backgroundColor: activeTab === nav.id ? "var(--royal-blue)" : "transparent", color: activeTab === nav.id ? "#ffffff" : "var(--text-muted)", transition: "all 0.2s ease" }}>
@@ -672,10 +672,10 @@ export default function AdminPage() {
                   {activeTab === "timetable" && "Class Timetable Management"}
                   {activeTab === "upload-timetable" && "Excel Timetable Import"}
                   {activeTab === "upload-users" && "Bulk User Creation & Profile Setup"}
-                  {activeTab === "automation" && "System Operations, Retention Policies & Day Order Engine"}
+                  {activeTab === "automation" && "Autonomous Operations & Intelligence Engine"}
                   {activeTab === "audit" && "System Audit Trail & Security Logs"}
                 </h1>
-                <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--text-muted)" }}>Vel Tech Multi Tech Dr. Rangarajan Dr. Sakunthala Engineering College (Autonomous) • Anna University Affiliated</p>
+                <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--text-muted)" }}>Vel Tech Multi Tech Autonomous ERP System</p>
               </div>
             </div>
             <div style={{ flexShrink: 0, display: "flex", alignItems: "center" }}>

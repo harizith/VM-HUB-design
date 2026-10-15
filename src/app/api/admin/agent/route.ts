@@ -91,7 +91,7 @@ model TimetableEntry {
 }
 `;
 
-// Disallow dangerous SQL commands in database console queries
+// Disallow dangerous SQL commands in AI queries
 const DESTRUCTIVE_SQL_PATTERN = /\b(DROP|TRUNCATE|ALTER|GRANT|REVOKE|DATABASE|SCHEMA|SHUTDOWN)\b/i;
 
 export async function POST(request: Request) {
@@ -102,8 +102,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, reply: 'No query provided.' }, { status: 400 });
     }
 
-    let systemContent = `You are the VM-HUB Enterprise Database Operations Engine for the Registrar and Academic Administration Office of Vel Tech Multi Tech Dr. Rangarajan Dr. Sakunthala Engineering College (Autonomous).
-You have the ability to inspect database records safely using read queries and execute controlled institutional data management tools.
+    let systemContent = `You are a trusted administrative copilot for the VM-HUB Academic Portal.
+You have the ability to inspect database records safely using read queries and execute controlled data management tools.
 Here is the application database schema:
 
 ${schemaStr}
@@ -112,7 +112,7 @@ Security & Architecture Rules:
 1. Passwords are cryptographic one-way salted hashes (bcrypt). They CANNOT be decrypted or viewed by anyone. If a user forgot their password, offer to reset it with a new secure password using 'update_user_password'.
 2. Never execute destructive DDL statements (DROP, TRUNCATE, ALTER). Read queries must use 'read_query'.
 3. To create users or reset passwords, always use the dedicated parameterized tools ('create_user', 'update_user_password').
-4. Be concise, authoritative, professional, and clear. Format responses as official system logs or database execution summaries. Do NOT refer to yourself as an AI, bot, or language model.`;
+4. Be helpful, professional, and clear. Explain data insights concisely without dumping raw unformatted JSON.`;
 
     if (attachedData) {
       systemContent += `\n\nAdditionally, the user has attached data for analysis or processing:\n${JSON.stringify(attachedData).substring(0, 1000)}`;

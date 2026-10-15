@@ -157,10 +157,10 @@ export default function AttendanceTrendChart({ className, classId = "II-CSE-A" }
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
         <div>
           <h3 style={{ fontSize: "1.1rem", fontWeight: "700", margin: "0 0 0.25rem 0", color: "var(--text-main)" }}>
-            6-Month Attendance Trend & Predictive Insights
+            6-Month Attendance Trend &amp; Semester Forecast
           </h3>
           <p style={{ margin: 0, fontSize: "0.825rem", color: "var(--text-muted)" }}>
-            Class: <strong>{classId}</strong> • Historical consistency with AI projection
+            Class: <strong>{classId}</strong> • Historical consistency &amp; semester statistical projection (Regulation 2023)
           </p>
         </div>
         <span style={{ fontSize: "0.75rem", padding: "0.2rem 0.6rem", borderRadius: "9999px", backgroundColor: "rgba(56, 189, 248, 0.15)", color: "var(--sky-blue)", fontWeight: "700" }}>

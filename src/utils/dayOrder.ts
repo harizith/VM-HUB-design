@@ -110,3 +110,76 @@ export async function getDayOrderInfo(): Promise<DayOrderInfo> {
     doIndex: currentDayOrder === "Leave" ? -1 : doIndex 
   };
 }
+
+export async function getDayOrderForDate(targetDate: Date): Promise<string> {
+  let baseDateStr = '2026-09-13T00:00:00';
+  let baseIndex = 2; // Day Order III
+  let holidays: string[] = [];
+  let workingWeekends: string[] = [];
+
+  try {
+    const settings = await prisma.systemSetting.findMany({
+      where: {
+        key: { in: ['DAY_ORDER_BASE_DATE', 'DAY_ORDER_BASE_INDEX', 'HOLIDAYS', 'WORKING_WEEKENDS'] }
+      }
+    });
+
+    const baseDateSetting = settings.find((s: { key: string }) => s.key === 'DAY_ORDER_BASE_DATE');
+    const baseIndexSetting = settings.find((s: { key: string }) => s.key === 'DAY_ORDER_BASE_INDEX');
+    const holidaysSetting = settings.find((s: { key: string }) => s.key === 'HOLIDAYS');
+    const workingWeekendsSetting = settings.find((s: { key: string }) => s.key === 'WORKING_WEEKENDS');
+
+    if (baseDateSetting) baseDateStr = baseDateSetting.value;
+    if (baseIndexSetting) baseIndex = parseInt(baseIndexSetting.value, 10);
+    if (holidaysSetting) {
+      try { holidays = JSON.parse(holidaysSetting.value); } catch {}
+    }
+    if (workingWeekendsSetting) {
+      try { workingWeekends = JSON.parse(workingWeekendsSetting.value); } catch {}
+    }
+  } catch (e) {
+    console.error("Failed to fetch day order settings", e);
+  }
+
+  const baseDate = new Date(baseDateStr);
+  baseDate.setHours(0, 0, 0, 0);
+
+  const target = new Date(targetDate);
+  target.setHours(0, 0, 0, 0);
+
+  const formatDate = (d: Date) => {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const isWorkingDay = (d: Date) => {
+    const dateStr = formatDate(d);
+    const day = d.getDay();
+    const isWeekend = day === 0 || day === 6;
+    if (holidays.includes(dateStr)) return false;
+    if (workingWeekends.includes(dateStr)) return true;
+    return !isWeekend;
+  };
+
+  let current = new Date(baseDate);
+  let weekdays = 0;
+
+  while (current < target) {
+    current.setDate(current.getDate() + 1);
+    if (isWorkingDay(current)) weekdays++;
+  }
+  while (current > target) {
+    current.setDate(current.getDate() - 1);
+    if (isWorkingDay(current)) weekdays--;
+  }
+
+  const roman = ["I", "II", "III", "IV", "V"];
+  if (isWorkingDay(target)) {
+    const doIndex = (((baseIndex + weekdays) % 5) + 5) % 5;
+    return roman[doIndex];
+  }
+  return "Leave";
+}
+

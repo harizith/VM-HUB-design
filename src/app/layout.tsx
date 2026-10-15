@@ -18,8 +18,8 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "VM-HUB | Academic Portal",
-  description: "Vel Tech Multi Tech Autonomous Academic Portal",
+  title: "VM-HUB | Enterprise Academic Portal | Vel Tech Multi Tech (Autonomous)",
+  description: "Official Autonomous Enterprise Academic Management System (AMIS) of Vel Tech Multi Tech Dr. Rangarajan Dr. Sakunthala Engineering College. Affiliated to Anna University, Approved by AICTE, NAAC 'A++' Grade.",
 };
 
 import { ThemeProvider } from "@/components/theme-provider";

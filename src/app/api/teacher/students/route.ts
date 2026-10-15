@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { getDayOrderInfo } from "@/utils/dayOrder";
+import { getDayOrderInfo, getDayOrderForDate } from "@/utils/dayOrder";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +54,37 @@ export async function GET(request: Request) {
     const { currentDayOrder } = await getDayOrderInfo();
     const todayString = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
 
-    // Fetch the teacher's full timetable (to know which students they can see)
+    // Parse query params for date filtering
+    const url = new URL(request.url);
+    const dateParam = url.searchParams.get("date");
+    const startDateParam = url.searchParams.get("startDate");
+    const endDateParam = url.searchParams.get("endDate");
+
+    let effectiveStartDate = todayString;
+    let effectiveEndDate = todayString;
+
+    if (dateParam) {
+      effectiveStartDate = dateParam;
+      effectiveEndDate = dateParam;
+    } else if (startDateParam && endDateParam) {
+      effectiveStartDate = startDateParam;
+      effectiveEndDate = endDateParam;
+    } else if (startDateParam) {
+      effectiveStartDate = startDateParam;
+      effectiveEndDate = startDateParam;
+    }
+
+    // Determine target day order for the selected date
+    let targetDayOrder = currentDayOrder;
+    if (effectiveStartDate === effectiveEndDate && effectiveStartDate !== todayString) {
+      try {
+        targetDayOrder = await getDayOrderForDate(new Date(effectiveStartDate + "T00:00:00"));
+      } catch {
+        targetDayOrder = currentDayOrder;
+      }
+    }
+
+    // Fetch the teacher's full timetable (to know which classes/students they teach)
     const teacherTimetable = await prisma.timetableEntry.findMany({
       where: {
         facultyName: {
@@ -64,9 +94,15 @@ export async function GET(request: Request) {
       }
     });
 
-    // Today's specific classes for the teacher
-    const todayClasses = teacherTimetable.filter(t => t.dayOrder === currentDayOrder);
-    todayClasses.sort((a, b) => a.period - b.period);
+    // Classes for the target day order (if Leave or none, fallback to full timetable)
+    let activeClasses = teacherTimetable.filter(t => t.dayOrder === targetDayOrder);
+    if (activeClasses.length === 0) {
+      activeClasses = teacherTimetable.filter(t => t.dayOrder === currentDayOrder);
+    }
+    if (activeClasses.length === 0 && teacherTimetable.length > 0) {
+      activeClasses = teacherTimetable;
+    }
+    activeClasses.sort((a, b) => a.period - b.period);
 
     const teacherClasses = new Set(teacherTimetable.map(t => t.classId));
 
@@ -91,21 +127,38 @@ export async function GET(request: Request) {
       }))
       .filter(student => teacherClasses.has(student.computedClassId));
 
-    // Fetch today's attendance records marked by this teacher
+    // Query attendance records for the specified date range
+    const attendanceFilter: any = {};
+    if (effectiveStartDate === effectiveEndDate) {
+      attendanceFilter.dateString = effectiveStartDate;
+    } else {
+      attendanceFilter.dateString = {
+        gte: effectiveStartDate,
+        lte: effectiveEndDate
+      };
+    }
+
+    if (teacherClasses.size > 0) {
+      attendanceFilter.classId = { in: Array.from(teacherClasses) };
+    }
+
     const attendance = await prisma.attendance.findMany({
-      where: {
-        dateString: todayString,
-        facultyName: searchStr
-      }
+      where: attendanceFilter,
+      orderBy: { createdAt: "desc" }
     });
 
     return NextResponse.json({
       success: true,
       data: {
         students,
-        todayClasses,
+        todayClasses: activeClasses,
+        allTeacherClasses: teacherTimetable,
         attendance,
-        dateString: todayString
+        dateString: effectiveStartDate,
+        startDate: effectiveStartDate,
+        endDate: effectiveEndDate,
+        targetDayOrder,
+        todayDateString: todayString
       }
     });
 

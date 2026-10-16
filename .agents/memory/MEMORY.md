@@ -1,1 +1,1 @@
-- [VM-HUB Replit setup quirks](vm-hub-replit-setup.md) — Respect the repo's lockfile/runtime and allow Replit preview origins for Next.js HMR.
+- [VM-HUB Replit setup quirks](vm-hub-replit-setup.md) — Web preview needs port 5000 forwarded to external 80, plus allowed origins for Next.js HMR.

@@ -1,0 +1,1 @@
+- [VM-HUB Replit setup quirks](vm-hub-replit-setup.md) — Respect the repo's lockfile/runtime and allow Replit preview origins for Next.js HMR.

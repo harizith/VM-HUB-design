@@ -33,8 +33,8 @@ export async function GET(request: Request) {
           email: um.emailid,
           role: um.usermode.toUpperCase(),
           facultyProfile: {
-             department: "CSE",
-             designation: "Assistant Professor",
+             department: null,
+             designation: null,
              vmNo: um.vmno
           }
         } as any;
@@ -58,7 +58,7 @@ export async function GET(request: Request) {
     const firstName = nameParts[0];
 
     let timetable: any[] = [];
-    let fullTimetable: Record<string, any[]> = { "I": [], "II": [], "III": [], "IV": [], "V": [] };
+    let fullTimetable: Record<string, any[]> = { "I": [], "II": [], "III": [], "IV": [], "V": [], UNASSIGNED: [] };
 
     try {
       const orConditions: any[] = [];
@@ -109,9 +109,8 @@ export async function GET(request: Request) {
         }));
 
         consolidated.forEach((entry: any) => {
-          if (fullTimetable[entry.dayOrder]) {
-            fullTimetable[entry.dayOrder].push(entry);
-          }
+          const day = entry.dayOrder;
+          (day && fullTimetable[day] ? fullTimetable[day] : fullTimetable.UNASSIGNED).push(entry);
           if (entry.dayOrder === currentDayOrder) {
             timetable.push(entry);
           }
@@ -144,8 +143,8 @@ export async function GET(request: Request) {
         teacher: {
           name: user.name,
           vmNo,
-          department: user.facultyProfile?.department || "CSE",
-          designation: user.facultyProfile?.designation || "Faculty"
+          department: user.facultyProfile?.department || "",
+          designation: user.facultyProfile?.designation || ""
         },
         currentDayOrder,
         tomorrowDayOrder,

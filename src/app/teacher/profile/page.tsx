@@ -239,6 +239,29 @@ export default function TeacherProfilePage() {
               </div>
             </div>
 
+            <div className="student-card premium-card">
+              <h3 style={{ margin: "0 0 0.5rem 0", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <FiBook /> Teaching Assignments
+              </h3>
+              <p style={{ margin: "0 0 1.25rem 0", color: "var(--text-muted)", fontSize: "0.8rem" }}>
+                These assignments are maintained by your administrator.
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                {[
+                  ["Subject 1", data.profile.subjects?.subject1],
+                  ["Subject 2", data.profile.subjects?.subject2],
+                  ["Lab 1", data.profile.subjects?.lab1],
+                  ["Additional 1", data.profile.subjects?.additional1],
+                  ["Additional 2", data.profile.subjects?.additional2],
+                ].map(([label, value]) => (
+                  <div key={label} style={{ padding: "0.9rem", borderRadius: "8px", backgroundColor: "var(--bg-card-header)" }}>
+                    <label style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontWeight: 600 }}>{label}</label>
+                    <div style={{ marginTop: "0.25rem", color: "var(--text-main)", fontWeight: 500 }}>{value || "Not assigned"}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="student-card premium-card" style={{ background: "linear-gradient(135deg, var(--royal-blue) 0%, #3b82f6 100%)", color: "white", border: "none" }}>
               <h3 style={{ margin: "0 0 1.5rem 0", display: "flex", alignItems: "center", gap: "0.5rem", color: "white" }}>
                 <FiAward /> Highlights

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { hashPassword } from "@/lib/encryption";
+import { requireAdmin } from "@/lib/adminAuth";
 
 // GET /api/admin/users - Fetch all users with their profile relations from DB
 export async function GET() {
@@ -30,6 +31,11 @@ export async function GET() {
             vmNo: true,
             department: true,
             designation: true,
+            subject1: true,
+            subject2: true,
+            lab1: true,
+            additional1: true,
+            additional2: true,
           },
         },
       },
@@ -43,6 +49,11 @@ export async function GET() {
 
 // POST /api/admin/users - Create new user
 export async function POST(req: Request) {
+  const authorization = await requireAdmin();
+  if (!authorization.ok) {
+    return NextResponse.json({ success: false, error: authorization.error }, { status: authorization.status });
+  }
+
   try {
     const body = await req.json();
     const { email, name, password, role, vmNo } = body;
@@ -100,11 +111,20 @@ export async function POST(req: Request) {
     `;
 
     // 3. Role-specific profile creation
-    const dept = (body.department || "CSE").toUpperCase().trim();
+    const dept = body.department ? String(body.department).toUpperCase().trim() : null;
+    if (dept) {
+      await prisma.department.upsert({
+        where: { code: dept },
+        update: {},
+        create: { code: dept, name: `${dept} Department` },
+      });
+    }
     if (validRole === "STUDENT") {
-      const year = body.year || "I";
-      const sec = body.section || "A";
-      const roll = cleanVmNo || newId.substring(0, 8);
+      const year = body.year ? String(body.year).trim() : null;
+      const sec = body.section ? String(body.section).trim() : null;
+      const roll = body.rollNumber ? String(body.rollNumber).trim() : null;
+      const semester = body.semester ? Number.parseInt(String(body.semester), 10) : null;
+      const batch = body.batch ? String(body.batch).trim() : null;
       
       await prisma.$executeRaw`
         INSERT INTO "StudentProfile" ("userEmail", "rollNumber", "department", "semester", "batch", "year", "section", "createdAt")
@@ -112,26 +132,31 @@ export async function POST(req: Request) {
           ${cleanEmail},
           ${roll},
           ${dept},
-          1,
-          '2023-2027',
+          ${Number.isFinite(semester) ? semester : null},
+          ${batch},
           ${year},
           ${sec},
           NOW()
         )
       `;
     } else if (validRole === "FACULTY" && cleanVmNo) {
-      const designation = body.designation || "Assistant Professor";
+      const designation = body.designation ? String(body.designation).trim() : null;
       await prisma.$executeRaw`
-        INSERT INTO "FacultyProfile" ("vmNo", "department", "designation", "createdAt")
+        INSERT INTO "FacultyProfile" ("vmNo", "department", "designation", "subject1", "subject2", "lab1", "additional1", "additional2", "createdAt")
         VALUES (
           ${cleanVmNo},
           ${dept},
           ${designation},
+          ${body.subject1 ? String(body.subject1).trim() : null},
+          ${body.subject2 ? String(body.subject2).trim() : null},
+          ${body.lab1 ? String(body.lab1).trim() : null},
+          ${body.additional1 ? String(body.additional1).trim() : null},
+          ${body.additional2 ? String(body.additional2).trim() : null},
           NOW()
         )
       `;
     } else if (validRole === "HOD" && cleanVmNo) {
-      const designation = body.designation || "Head of Department";
+      const designation = body.designation ? String(body.designation).trim() : null;
       await prisma.$executeRaw`
         INSERT INTO "HodProfile" ("vmNo", "department", "designation", "createdAt")
         VALUES (
@@ -190,6 +215,11 @@ export async function POST(req: Request) {
 
 // DELETE /api/admin/users - Delete user
 export async function DELETE(req: Request) {
+  const authorization = await requireAdmin();
+  if (!authorization.ok) {
+    return NextResponse.json({ success: false, error: authorization.error }, { status: authorization.status });
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("id");

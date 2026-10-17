@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAdmin } from '@/lib/adminAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -159,6 +160,11 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  const authorization = await requireAdmin();
+  if (!authorization.ok) {
+    return NextResponse.json({ success: false, error: authorization.error }, { status: authorization.status });
+  }
+
   try {
     const body = await request.json();
     const { classId, entries } = body;
@@ -177,11 +183,11 @@ export async function PUT(request: Request) {
         classId,
         dayOrder: entry.dayOrder,
         period: entry.period,
-        timeRange: entry.timeRange || `Period ${entry.period}`,
-        subjectCode: entry.subjectCode,
-        subjectName: entry.subjectName,
-        facultyName: entry.facultyName,
-        roomNo: entry.roomNo || 'LH-101',
+        timeRange: entry.timeRange || null,
+        subjectCode: entry.subjectCode || null,
+        subjectName: entry.subjectName || null,
+        facultyName: entry.facultyName || null,
+        roomNo: entry.roomNo || null,
         vmsNo: typeof entry.vmsNo === 'string' ? entry.vmsNo.trim() || null : null,
       })),
     });
@@ -194,6 +200,11 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const authorization = await requireAdmin();
+  if (!authorization.ok) {
+    return NextResponse.json({ success: false, error: authorization.error }, { status: authorization.status });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const classId = searchParams.get('classId');

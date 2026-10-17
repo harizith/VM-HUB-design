@@ -66,7 +66,7 @@ export async function GET(request: Request) {
 
     // Today's specific classes for the teacher
     const todayClasses = teacherTimetable.filter(t => t.dayOrder === currentDayOrder);
-    todayClasses.sort((a, b) => a.period - b.period);
+    todayClasses.sort((a, b) => (a.period ?? Number.MAX_SAFE_INTEGER) - (b.period ?? Number.MAX_SAFE_INTEGER));
 
     const teacherClasses = new Set(teacherTimetable.map(t => t.classId));
 

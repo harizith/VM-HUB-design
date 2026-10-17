@@ -17,15 +17,15 @@ import {
 } from "lucide-react";
 
 interface TimetablePreviewRow {
-  classId: string;
-  dayOrder: string;
-  period: number;
-  timeRange: string;
-  subjectCode: string;
-  subjectName: string;
-  facultyName: string;
+  classId: string | null;
+  dayOrder: string | null;
+  period: number | null;
+  timeRange: string | null;
+  subjectCode: string | null;
+  subjectName: string | null;
+  facultyName: string | null;
   vmsNo?: string;
-  roomNo: string;
+  roomNo: string | null;
   category?: string;
 }
 
@@ -35,7 +35,7 @@ export default function AdminTimetableExcelUpload({ onUploadSuccess }: { onUploa
   const [parsingError, setParsingError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<{ success: boolean; count?: number; message?: string } | null>(null);
-  const [importMode, setImportMode] = useState<"append" | "replace">("replace");
+  const [importMode, setImportMode] = useState<"append" | "replace">("append");
   const [showFormatGuide, setShowFormatGuide] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -128,7 +128,7 @@ export default function AdminTimetableExcelUpload({ onUploadSuccess }: { onUploa
         const workbook = XLSX.read(data, { type: "array" });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-        const json = XLSX.utils.sheet_to_json<any>(worksheet);
+        const json = XLSX.utils.sheet_to_json<any>(worksheet, { defval: "" });
 
         if (!json || json.length === 0) {
           setParsingError("The selected file is empty or could not be parsed.");
@@ -136,21 +136,32 @@ export default function AdminTimetableExcelUpload({ onUploadSuccess }: { onUploa
           return;
         }
 
-        const mapped: TimetablePreviewRow[] = json.map((r: any) => ({
-          classId: (r["Class ID"] || r["Class"] || r.classId || r.class_id || "").toString().trim(),
-          dayOrder: (r["Day Order"] || r["Day"] || r.dayOrder || r.day_order || "I").toString().trim(),
-          period: parseInt(r["Period"] || r.period || r.slot || "1", 10) || 1,
-          timeRange: (r["Time Range"] || r.timeRange || r.time_range || r.time || "").toString().trim(),
-          subjectCode: (r["Subject Code"] || r["SubjectCode"] || r.subjectCode || r.subject_code || "").toString().trim(),
-          subjectName: (r["Subject Name"] || r["Subject"] || r.subjectName || r.subject_name || "").toString().trim(),
-          facultyName: (r["Faculty Name"] || r["Faculty"] || r.facultyName || r.faculty_name || "").toString().trim(),
-          vmsNo: (r["VMS No"] || r["VM No"] || r.vmsNo || r.vmNo || "").toString().trim(),
-          roomNo: (r["Room No"] || r["Room"] || r.roomNo || r.room_no || "LH-101").toString().trim(),
-          category: (r["Subject Category"] || r["Category"] || r.category || "").toString().trim().toLowerCase(),
-        })).filter(r => r.classId && (r.subjectName || r.subjectCode));
+        const normalized = (value: unknown) => String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+        const getCell = (row: any, ...aliases: string[]) => {
+          const wanted = new Set(aliases.map(normalized));
+          const key = Object.keys(row).find((header) => wanted.has(normalized(header)));
+          return key === undefined ? "" : String(row[key] ?? "").trim();
+        };
+        const nullableCell = (value: string) => value || null;
+        const mapped: TimetablePreviewRow[] = json.map((r: any) => {
+          const periodRaw = getCell(r, "Period", "Slot");
+          const parsedPeriod = periodRaw ? Number.parseInt(periodRaw, 10) : NaN;
+          return {
+            classId: nullableCell(getCell(r, "Class ID", "Class")),
+            dayOrder: nullableCell(getCell(r, "Day Order", "Day")),
+            period: Number.isInteger(parsedPeriod) && parsedPeriod >= 1 && parsedPeriod <= 8 ? parsedPeriod : null,
+            timeRange: nullableCell(getCell(r, "Time Range", "Time")),
+            subjectCode: nullableCell(getCell(r, "Subject Code", "SubjectCode", "Code")),
+            subjectName: nullableCell(getCell(r, "Subject Name", "Subject")),
+            facultyName: nullableCell(getCell(r, "Faculty Name", "Faculty", "Teacher")),
+            vmsNo: getCell(r, "VMS No", "VM No", "VMS Number") || undefined,
+            roomNo: nullableCell(getCell(r, "Room No", "Room")),
+            category: getCell(r, "Subject Category", "Category").toLowerCase() || undefined,
+          };
+        }).filter((row, index) => Object.values(json[index]).some(value => String(value ?? "").trim() !== ""));
 
         if (mapped.length === 0) {
-          setParsingError("No valid rows matched the timetable format. Check column headers in the guide below.");
+          setParsingError("No non-empty timetable rows were found. Check the column headers in the guide below.");
           setParsedRows([]);
         } else {
           setParsedRows(mapped);
@@ -184,7 +195,7 @@ export default function AdminTimetableExcelUpload({ onUploadSuccess }: { onUploa
         setUploadResult({
           success: true,
           count: data.count,
-          message: `Successfully uploaded ${data.count} timetable slots to database!`,
+          message: `Saved ${data.count} of ${data.totalProcessed} timetable rows. Blank values were kept blank.${data.warnings?.length ? ` ${data.warnings.join("; ")}` : ""}`,
         });
         if (onUploadSuccess) onUploadSuccess();
       } else {
@@ -229,7 +240,7 @@ export default function AdminTimetableExcelUpload({ onUploadSuccess }: { onUploa
               Upload Individual & Class Timetables (.xlsx / .csv)
             </h2>
             <p style={{ margin: "0.4rem 0 0 0", color: "var(--text-muted)", fontSize: "0.875rem" }}>
-              Upload full semester schedules or individual faculty timetables. Supports multiple classes, Day Orders (I - V), and periods (1 - 8).
+              Upload complete or partial schedules. Blank cells stay blank; only non-empty rows are imported.
             </p>
           </div>
 
@@ -294,7 +305,7 @@ export default function AdminTimetableExcelUpload({ onUploadSuccess }: { onUploa
         {showFormatGuide && (
           <div style={{ marginTop: "1.25rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
             <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
-              Ensure your Excel sheet has the following exact column names in the first row. The parser accepts both capitalized headers and standard camelCase names:
+              The first row should contain these column names (case-insensitive). All timetable values may be left blank; empty spreadsheet rows are ignored.
             </p>
 
             <div style={{ overflowX: "auto" }}>
@@ -310,16 +321,16 @@ export default function AdminTimetableExcelUpload({ onUploadSuccess }: { onUploa
                 </thead>
                 <tbody>
                   {[
-                    { col: "Class ID", req: "Required", type: "Text", sample: "II-CSE-A, IV-CSE-B", note: "Target class identifier matching students/department" },
-                    { col: "Day Order", req: "Required", type: "Roman or Number", sample: "I, II, III, IV, V (or 1-5)", note: "Academic rotation day order" },
-                    { col: "Period", req: "Required", type: "Integer (1 to 8)", sample: "1, 2, 3 ... 8", note: "Period slot of the lecture" },
-                    { col: "Subject Code", req: "Required", type: "Text", sample: "CS3351, 19CS501", note: "Official course code" },
-                    { col: "Subject Name", req: "Required", type: "Text", sample: "Compiler Design", note: "Full name of the course" },
+                    { col: "Class ID", req: "Optional", type: "Text", sample: "II-CSE-A, IV-CSE-B", note: "Used to show this entry to students in the class" },
+                    { col: "Day Order", req: "Optional", type: "Roman or Number", sample: "I, II, III, IV, V (or 1-5)", note: "Unrecognized or blank values remain unassigned" },
+                    { col: "Period", req: "Optional", type: "Integer (1 to 8)", sample: "1, 2, 3 ... 8", note: "Blank or invalid periods remain unset" },
+                    { col: "Subject Code", req: "Optional", type: "Text", sample: "CS3351, 19CS501", note: "Stored as supplied; not inferred from the subject name" },
+                    { col: "Subject Name", req: "Optional", type: "Text", sample: "Compiler Design", note: "Stored as supplied; not inferred from the subject code" },
                     { col: "Subject Category", req: "Optional", type: "Category Tag", sample: "sub1, sub2, sub3, lab1, lab2, pe, oe, additional1, additional2", note: "Flexible slot classifier for staff & HOD timetables" },
                     { col: "Faculty Name", req: "Recommended", type: "Text", sample: "Dr. R. Saravanan", note: "Lecturer / professor name" },
                     { col: "VMS No", req: "Optional", type: "Text", sample: "1944, 17433", note: "Faculty employee number (enables auto-sync to Teacher mode)" },
-                    { col: "Room No", req: "Optional", type: "Text", sample: "LH-201, CS-LAB-1", note: "Lecture hall or lab room number (defaults to LH-101)" },
-                    { col: "Time Range", req: "Optional", type: "Text", sample: "08:05 - 08:55", note: "Custom timing (auto-fills from college bell timing if blank)" },
+                    { col: "Room No", req: "Optional", type: "Text", sample: "LH-201, CS-LAB-1", note: "Lecture hall or lab room number" },
+                    { col: "Time Range", req: "Optional", type: "Text", sample: "08:05 - 08:55", note: "Stored as supplied; no default is inserted" },
                   ].map((item, idx) => (
                     <tr key={idx} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
                       <td style={{ padding: "0.6rem 0.75rem", fontWeight: "700", color: "var(--text-main)" }}><code>{item.col}</code></td>
@@ -557,15 +568,15 @@ export default function AdminTimetableExcelUpload({ onUploadSuccess }: { onUploa
                 {parsedRows.slice(0, 10).map((row, i) => (
                   <tr key={i} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
                     <td style={{ padding: "0.55rem 0.75rem", color: "var(--text-muted)" }}>{i + 1}</td>
-                    <td style={{ padding: "0.55rem 0.75rem", fontWeight: "700", color: "var(--sky-blue)" }}>{row.classId}</td>
-                    <td style={{ padding: "0.55rem 0.75rem", fontWeight: "700", color: "var(--text-main)" }}>Day {row.dayOrder}</td>
-                    <td style={{ padding: "0.55rem 0.75rem", fontWeight: "700" }}>P{row.period}</td>
-                    <td style={{ padding: "0.55rem 0.75rem", color: "var(--text-muted)" }}>{row.timeRange || "08:05 - 08:55"}</td>
-                    <td style={{ padding: "0.55rem 0.75rem", fontFamily: "monospace" }}>{row.subjectCode}</td>
-                    <td style={{ padding: "0.55rem 0.75rem", color: "var(--text-main)" }}>{row.subjectName}</td>
+                  <td style={{ padding: "0.55rem 0.75rem", fontWeight: "700", color: "var(--sky-blue)" }}>{row.classId || "—"}</td>
+                  <td style={{ padding: "0.55rem 0.75rem", fontWeight: "700", color: "var(--text-main)" }}>{row.dayOrder ? `Day ${row.dayOrder}` : "—"}</td>
+                  <td style={{ padding: "0.55rem 0.75rem", fontWeight: "700" }}>{row.period ? `P${row.period}` : "—"}</td>
+                  <td style={{ padding: "0.55rem 0.75rem", color: "var(--text-muted)" }}>{row.timeRange || "—"}</td>
+                  <td style={{ padding: "0.55rem 0.75rem", fontFamily: "monospace" }}>{row.subjectCode || "—"}</td>
+                  <td style={{ padding: "0.55rem 0.75rem", color: "var(--text-main)" }}>{row.subjectName || "—"}</td>
                     <td style={{ padding: "0.55rem 0.75rem", color: "var(--text-muted)" }}>{row.facultyName || "—"}</td>
                     <td style={{ padding: "0.55rem 0.75rem", color: "var(--sky-blue)" }}>{row.vmsNo || "—"}</td>
-                    <td style={{ padding: "0.55rem 0.75rem", color: "var(--text-muted)" }}>{row.roomNo}</td>
+                  <td style={{ padding: "0.55rem 0.75rem", color: "var(--text-muted)" }}>{row.roomNo || "—"}</td>
                   </tr>
                 ))}
               </tbody>

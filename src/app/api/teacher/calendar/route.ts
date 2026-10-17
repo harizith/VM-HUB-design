@@ -29,8 +29,8 @@ export async function GET(request: Request) {
           email: um.emailid,
           role: um.usermode.toUpperCase(),
           facultyProfile: {
-             department: "CSE",
-             designation: "Assistant Professor",
+             department: null,
+             designation: null,
              vmNo: um.vmno
           }
         } as any;
@@ -65,13 +65,12 @@ export async function GET(request: Request) {
 
     // Group by Day Order
     const grouped: Record<string, any[]> = {
-      "I": [], "II": [], "III": [], "IV": [], "V": []
+      "I": [], "II": [], "III": [], "IV": [], "V": [], UNASSIGNED: []
     };
 
     fullTimetable.forEach(entry => {
-      if (grouped[entry.dayOrder]) {
-        grouped[entry.dayOrder].push(entry);
-      }
+      const day = entry.dayOrder;
+      (day && grouped[day] ? grouped[day] : grouped.UNASSIGNED).push(entry);
     });
 
     return NextResponse.json({

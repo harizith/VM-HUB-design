@@ -29,8 +29,8 @@ export async function GET(request: Request) {
           role: um.usermode.toUpperCase(),
           status: "ACTIVE",
           facultyProfile: {
-             department: "CSE",
-             designation: "Faculty",
+             department: null,
+             designation: null,
              vmNo: um.vmno
           }
         } as any;
@@ -49,8 +49,15 @@ export async function GET(request: Request) {
         vmNo: user.vmNo || (user.facultyProfile?.vmNo || ""),
         status: user.status,
         profile: {
-          department: user.facultyProfile?.department || "CSE",
-          designation: user.facultyProfile?.designation || "Faculty",
+          department: user.facultyProfile?.department || "",
+          designation: user.facultyProfile?.designation || "",
+          subjects: {
+            subject1: user.facultyProfile?.subject1 || "",
+            subject2: user.facultyProfile?.subject2 || "",
+            lab1: user.facultyProfile?.lab1 || "",
+            additional1: user.facultyProfile?.additional1 || "",
+            additional2: user.facultyProfile?.additional2 || "",
+          },
         }
       }
     });

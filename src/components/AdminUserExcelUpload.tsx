@@ -34,6 +34,11 @@ interface UserPreviewRow {
   semester?: number;
   batch?: string;
   designation?: string;
+  subject1?: string;
+  subject2?: string;
+  lab1?: string;
+  additional1?: string;
+  additional2?: string;
 }
 
 export default function AdminUserExcelUpload({ onUploadSuccess }: { onUploadSuccess?: () => void }) {
@@ -100,8 +105,8 @@ export default function AdminUserExcelUpload({ onUploadSuccess }: { onUploadSucc
         { col: "Email Address", req: "Required", sample: "aarav@veltech.edu.in", desc: "User.email (Primary Login Key)" },
         { col: "VM No", req: "Required", sample: "17433", desc: "User.vmNo & Profile Key" },
         { col: "Roll Number", req: "Optional", sample: "23CS101", desc: "StudentProfile.rollNumber (defaults to VM No)" },
-        { col: "Department", req: "Required", sample: "CSE, ECE, AIDS, MECH", desc: "StudentProfile.department" },
-        { col: "Semester", req: "Required", sample: "1 to 8", desc: "StudentProfile.semester" },
+        { col: "Department", req: "Optional", sample: "CSE, ECE, AIDS, MECH", desc: "StudentProfile.department" },
+        { col: "Semester", req: "Optional", sample: "1 to 8", desc: "StudentProfile.semester" },
         { col: "Year", req: "Optional", sample: "I, II, III, IV", desc: "StudentProfile.year" },
         { col: "Section", req: "Optional", sample: "A, B, C", desc: "StudentProfile.section" },
         { col: "Batch", req: "Optional", sample: "2023-2027", desc: "StudentProfile.batch" },
@@ -122,6 +127,11 @@ export default function AdminUserExcelUpload({ onUploadSuccess }: { onUploadSucc
           "VMS No": "2103",
           "Department": "CSE",
           "Designation": "Assistant Professor",
+          "Subject1": "Data Structures",
+          "Subject2": "Operating Systems",
+          "Lab1": "Data Structures Lab",
+          "Additional1": "",
+          "Additional2": "",
           "Password": "Welcome@123"
         },
         {
@@ -130,15 +140,25 @@ export default function AdminUserExcelUpload({ onUploadSuccess }: { onUploadSucc
           "VMS No": "2088",
           "Department": "CSE",
           "Designation": "Assistant Professor",
+          "Subject1": "",
+          "Subject2": "",
+          "Lab1": "",
+          "Additional1": "",
+          "Additional2": "",
           "Password": "Welcome@123"
         }
       ],
       columnsGuide: [
         { col: "Full Name", req: "Required", sample: "Dr. E. Mercy Beulah", desc: "User.name" },
         { col: "Email Address", req: "Required", sample: "mercy@veltech.edu.in", desc: "User.email (Primary Login Key)" },
-        { col: "VMS No / VM No", req: "Required", sample: "2103", desc: "User.vmNo & FacultyProfile.vmNo" },
-        { col: "Department", req: "Required", sample: "CSE, ECE, AIDS, MECH", desc: "FacultyProfile.department" },
-        { col: "Designation", req: "Recommended", sample: "Assistant Professor, Professor", desc: "FacultyProfile.designation" },
+        { col: "VMS No / VM No", req: "Required for teacher assignments", sample: "2103", desc: "User.vmNo & FacultyProfile.vmNo" },
+        { col: "Department", req: "Optional", sample: "CSE, ECE, AIDS, MECH", desc: "FacultyProfile.department" },
+        { col: "Designation", req: "Optional", sample: "Assistant Professor, Professor", desc: "FacultyProfile.designation" },
+        { col: "Subject1", req: "Optional", sample: "Data Structures", desc: "FacultyProfile.subject1 (read-only for faculty)" },
+        { col: "Subject2", req: "Optional", sample: "Operating Systems", desc: "FacultyProfile.subject2 (read-only for faculty)" },
+        { col: "Lab1", req: "Optional", sample: "Data Structures Lab", desc: "FacultyProfile.lab1 (read-only for faculty)" },
+        { col: "Additional1", req: "Optional", sample: "Project Guidance", desc: "FacultyProfile.additional1 (read-only for faculty)" },
+        { col: "Additional2", req: "Optional", sample: "Elective", desc: "FacultyProfile.additional2 (read-only for faculty)" },
         { col: "Password", req: "Optional", sample: "Welcome@123", desc: "Encrypted password (default Welcome@123)" }
       ]
     },
@@ -163,8 +183,8 @@ export default function AdminUserExcelUpload({ onUploadSuccess }: { onUploadSucc
         { col: "Full Name", req: "Required", sample: "Dr. R. Saravanan", desc: "User.name" },
         { col: "Email Address", req: "Required", sample: "saravanan@veltech.edu.in", desc: "User.email (Primary Login Key)" },
         { col: "MTS / VMS No", req: "Required", sample: "1944", desc: "User.vmNo & HodProfile.vmNo" },
-        { col: "Department", req: "Required", sample: "CSE", desc: "HodProfile.department jurisdiction" },
-        { col: "Designation", req: "Recommended", sample: "Professor & Head", desc: "HodProfile.designation" },
+        { col: "Department", req: "Optional", sample: "CSE", desc: "HodProfile.department jurisdiction" },
+        { col: "Designation", req: "Optional", sample: "Professor & Head", desc: "HodProfile.designation" },
         { col: "Password", req: "Optional", sample: "Welcome@123", desc: "Encrypted password (default Welcome@123)" }
       ]
     },
@@ -184,6 +204,11 @@ export default function AdminUserExcelUpload({ onUploadSuccess }: { onUploadSucc
           "Department": "CSE",
           "Semester": 3,
           "Section": "A",
+          "Subject1": "",
+          "Subject2": "",
+          "Lab1": "",
+          "Additional1": "",
+          "Additional2": "",
           "Designation": "",
           "Password": "Welcome@123"
         },
@@ -203,11 +228,16 @@ export default function AdminUserExcelUpload({ onUploadSuccess }: { onUploadSucc
         { col: "Full Name", req: "Required", sample: "Aarav Sharma", desc: "User.name" },
         { col: "Email Address", req: "Required", sample: "aarav@veltech.edu.in", desc: "User.email" },
         { col: "User Role", req: "Required", sample: "STUDENT, FACULTY, HOD, ADMIN", desc: "User.role selector" },
-        { col: "VM No", req: "Required", sample: "17433, 1944", desc: "User.vmNo" },
-        { col: "Department", req: "Required", sample: "CSE, ECE, AIDS", desc: "Linked Department" },
-        { col: "Semester", req: "Students", sample: "3", desc: "StudentProfile.semester" },
-        { col: "Section", req: "Students", sample: "A", desc: "StudentProfile.section" },
-        { col: "Designation", req: "Faculty/HOD", sample: "Assistant Professor", desc: "Staff designation" },
+        { col: "VM No", req: "Optional", sample: "17433, 1944", desc: "User.vmNo" },
+        { col: "Department", req: "Optional", sample: "CSE, ECE, AIDS", desc: "Linked Department" },
+        { col: "Semester", req: "Optional", sample: "3", desc: "StudentProfile.semester" },
+        { col: "Section", req: "Optional", sample: "A", desc: "StudentProfile.section" },
+        { col: "Designation", req: "Optional", sample: "Assistant Professor", desc: "Staff designation" },
+        { col: "Subject1", req: "Optional", sample: "Data Structures", desc: "Faculty teaching assignment" },
+        { col: "Subject2", req: "Optional", sample: "Operating Systems", desc: "Faculty teaching assignment" },
+        { col: "Lab1", req: "Optional", sample: "Data Structures Lab", desc: "Faculty teaching assignment" },
+        { col: "Additional1", req: "Optional", sample: "", desc: "Faculty teaching assignment" },
+        { col: "Additional2", req: "Optional", sample: "", desc: "Faculty teaching assignment" },
         { col: "Password", req: "Optional", sample: "Welcome@123", desc: "Default Welcome@123" }
       ]
     }
@@ -241,7 +271,7 @@ export default function AdminUserExcelUpload({ onUploadSuccess }: { onUploadSucc
         const wb = XLSX.read(bstr, { type: "binary" });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
-        const rawJson: any[] = XLSX.utils.sheet_to_json(ws);
+        const rawJson: any[] = XLSX.utils.sheet_to_json(ws, { defval: "" });
 
         if (!rawJson || rawJson.length === 0) {
           setParsingError("Uploaded sheet contains no data rows.");
@@ -249,44 +279,75 @@ export default function AdminUserExcelUpload({ onUploadSuccess }: { onUploadSucc
           return;
         }
 
+        const normalizeHeader = (value: unknown) => String(value ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+        const columnAliases: Record<string, string[]> = {
+          subject1: ["subject1", "subjectone"],
+          subject2: ["subject2", "subjecttwo"],
+          lab1: ["lab1", "laboratory1"],
+          additional1: ["additional1"],
+          additional2: ["additional2"],
+        };
+        const sourceHeaders = Object.keys(rawJson[0] || {});
+        const subjectColumnsPresent = Object.fromEntries(
+          Object.entries(columnAliases).map(([field, aliases]) => [
+            field,
+            sourceHeaders.some((header) => aliases.includes(normalizeHeader(header))),
+          ])
+        );
+        const getCell = (row: any, aliases: string[]) => {
+          const wanted = new Set(aliases.map(normalizeHeader));
+          const key = Object.keys(row).find((header) => wanted.has(normalizeHeader(header)));
+          return key === undefined ? undefined : row[key];
+        };
+        const hasHeader = (...aliases: string[]) => {
+          const wanted = new Set(aliases.map(normalizeHeader));
+          return sourceHeaders.some((header) => wanted.has(normalizeHeader(header)));
+        };
+
         const mapped: UserPreviewRow[] = rawJson.map((r: any) => {
           // Normalize role based on selectedMode or explicit column
           let role: "STUDENT" | "FACULTY" | "HOD" | "ADMIN" = selectedMode === "ALL" ? "STUDENT" : selectedMode;
-          if (r["User Role"] || r["Role"] || r["role"]) {
-            const rawRole = (r["User Role"] || r["Role"] || r["role"]).toString().toUpperCase();
+          const userRole = getCell(r, ["User Role", "Role", "User Mode"]);
+          if (userRole) {
+            const rawRole = userRole.toString().toUpperCase();
             if (rawRole.includes("HOD") || rawRole.includes("HEAD")) role = "HOD";
             else if (rawRole.includes("FACULTY") || rawRole.includes("TEACHER") || rawRole.includes("PROF")) role = "FACULTY";
             else if (rawRole.includes("ADMIN")) role = "ADMIN";
             else role = "STUDENT";
           }
 
-          const rawEmail = r["Email Address"] || r["Email"] || r["Email ID"] || r.email || "";
-          const email = String(rawEmail).toLowerCase().trim();
-          const name = (r["Full Name"] || r["Name"] || r["User Name"] || r.name || "").toString().trim();
-          const vmNo = (r["VM No"] || r["VMNo"] || r["VMS No"] || r["MTS No"] || r["MTS / VMS No"] || r.vmNo || r.vmno || "").toString().trim();
-          const rollNumber = (r["Roll Number"] || r["Roll No"] || r.rollNumber || vmNo).toString().trim();
-          const department = (r["Department"] || r["Dept"] || r.department || "CSE").toString().toUpperCase().trim();
-          const password = (r["Password"] || r.password || "Welcome@123").toString().trim();
-          const year = (r["Year"] || r.year || "I").toString().trim();
-          const section = (r["Section"] || r["Sec"] || r.section || "A").toString().trim();
-          const semester = parseInt(r["Semester"] || r.semester) || 1;
-          const batch = (r["Batch"] || r.batch || "2023-2027").toString().trim();
-          const designation = (r["Designation"] || r.designation || (role === "HOD" ? "Head of Department" : "Assistant Professor")).toString().trim();
+          const rawEmail = getCell(r, ["Email Address", "Email", "Email ID"]);
+          const email = String(rawEmail ?? "").toLowerCase().trim();
+          const name = String(getCell(r, ["Full Name", "Name", "User Name"]) ?? "").trim();
+          const vmNo = String(getCell(r, ["VM No", "VMNo", "VMS No", "MTS No", "MTS / VMS No"]) ?? "").trim();
+          const rollNumber = String(getCell(r, ["Roll Number", "Roll No"]) ?? "").trim();
+          const department = String(getCell(r, ["Department", "Dept"]) ?? "").trim().toUpperCase();
+          const password = String(getCell(r, ["Password", "Pass"]) ?? "").trim();
+          const year = String(getCell(r, ["Year"]) ?? "").trim();
+          const section = String(getCell(r, ["Section", "Sec"]) ?? "").trim();
+          const rawSemester = String(getCell(r, ["Semester"]) ?? "").trim();
+          const parsedSemester = rawSemester ? Number.parseInt(rawSemester, 10) : undefined;
+          const semester = parsedSemester && Number.isFinite(parsedSemester) ? parsedSemester : undefined;
+          const batch = String(getCell(r, ["Batch"]) ?? "").trim();
+          const designation = String(getCell(r, ["Designation"]) ?? "").trim();
 
-          return {
-            name,
-            email,
-            role,
-            vmNo,
-            rollNumber,
-            department,
-            password,
-            year,
-            section,
-            semester,
-            batch,
-            designation
-          };
+          const preview: UserPreviewRow = { name, email, role };
+          if (hasHeader("VM No", "VMNo", "VMS No", "MTS No", "MTS / VMS No")) preview.vmNo = vmNo;
+          if (hasHeader("Roll Number", "Roll No")) preview.rollNumber = rollNumber;
+          if (hasHeader("Department", "Dept")) preview.department = department;
+          if (hasHeader("Password", "Pass") && password) preview.password = password;
+          if (hasHeader("Year")) preview.year = year;
+          if (hasHeader("Section", "Sec")) preview.section = section;
+          if (hasHeader("Semester")) preview.semester = semester;
+          if (hasHeader("Batch")) preview.batch = batch;
+          if (hasHeader("Designation")) preview.designation = designation;
+          for (const [field, aliases] of Object.entries(columnAliases)) {
+            if (subjectColumnsPresent[field]) {
+              const value = getCell(r, aliases);
+              preview[field as keyof UserPreviewRow] = String(value ?? "").trim() as never;
+            }
+          }
+          return preview;
         });
 
         // Validation filter
@@ -331,7 +392,7 @@ export default function AdminUserExcelUpload({ onUploadSuccess }: { onUploadSucc
           success: true,
           created: data.created,
           updated: data.updated,
-          message: `Onboarded ${data.created} new users and updated ${data.updated} existing accounts successfully!`,
+          message: `Onboarded ${data.createdCount} new users and updated ${data.updatedCount} existing accounts.${data.errors?.length ? ` ${data.errors.length} row(s) were skipped: ${data.errors.join("; ")}` : ""}`,
         });
         if (onUploadSuccess) onUploadSuccess();
       } else {

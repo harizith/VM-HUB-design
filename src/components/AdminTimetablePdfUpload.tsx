@@ -26,25 +26,24 @@ interface FacultyExtractedSummary {
   vmsNo: string;
   designation: string;
   slotCount: number;
-  totalHours?: number;
 }
 
 interface SampleSlot {
-  classId: string;
-  dayOrder: string;
-  period: number;
-  timeRange: string;
-  subjectCode: string;
-  subjectName: string;
-  facultyName: string;
-  roomNo: string;
+  classId: string | null;
+  dayOrder: string | null;
+  period: number | null;
+  timeRange: string | null;
+  subjectCode: string | null;
+  subjectName: string | null;
+  facultyName: string | null;
+  roomNo: string | null;
 }
 
 export default function AdminTimetablePdfUpload({ onUploadSuccess }: { onUploadSuccess?: () => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [importMode, setImportMode] = useState<"append" | "replace">("replace");
+  const [importMode, setImportMode] = useState<"append" | "replace">("append");
   const [showGuide, setShowGuide] = useState(true);
   const [expandedFaculties, setExpandedFaculties] = useState(false);
 
@@ -113,7 +112,7 @@ export default function AdminTimetablePdfUpload({ onUploadSuccess }: { onUploadS
           facultyCount: data.facultyCount,
           faculties: data.faculties,
           sampleSlots: data.sampleSlots,
-          message: `Successfully extracted & imported ${data.count} timetable slots across ${data.facultyCount} faculty members into the database!`,
+          message: data.message || `Imported ${data.count} timetable rows from the PDF.`,
         });
         if (onUploadSuccess) onUploadSuccess();
       } else {
@@ -158,7 +157,7 @@ export default function AdminTimetablePdfUpload({ onUploadSuccess }: { onUploadS
               Upload Individual Faculty Timetables (.pdf)
             </h2>
             <p style={{ margin: "0.4rem 0 0 0", color: "var(--text-muted)", fontSize: "0.875rem" }}>
-              Upload official college PDFs containing multi-page <strong>&quot;INDIVIDUAL TIME TABLE&quot;</strong> documents. Our smart algorithmic parser automatically maps periods (1 - 8), Day Orders (I - V), course codes, and faculty VMS numbers.
+              Imports only rows and values that can be read from a text-based timetable table. Unreadable or scanned PDFs are rejected instead of being filled with generated timetable data.
             </p>
           </div>
 
@@ -197,24 +196,24 @@ export default function AdminTimetablePdfUpload({ onUploadSuccess }: { onUploadS
             gap: "1.25rem"
           }}>
             <div>
-              <strong style={{ color: "var(--text-main)", display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.4rem" }}>
-                📄 Multi-Page PDF Support
-              </strong>
-              Each page of your PDF represents an individual faculty member (e.g., <em>Dr. R. Saravanan</em>, <em>Dr. M. Victor Jose</em>, etc.). The algorithm loops through every page automatically.
+                <strong style={{ color: "var(--text-main)", display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.4rem" }}>
+                  📄 Text-Based PDF Tables
+                </strong>
+                Each table needs a row-oriented header such as Class ID, Day Order, Period, Subject, Faculty, and Room. Repeated headers across pages are accepted.
             </div>
 
             <div>
               <strong style={{ color: "var(--text-main)", display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.4rem" }}>
                 ⚡ Auto-Extracted Metadata
               </strong>
-              Reads <strong>Name</strong>, <strong>MTS / VMS No</strong>, <strong>Designation</strong>, <strong>Hours/Week</strong>, and bottom subject mapping details (Semester / Section, Branch).
+                Values are copied only from cells under recognized headers. Missing values stay blank; no subject, faculty, class, or room is guessed.
             </div>
 
             <div>
               <strong style={{ color: "var(--text-main)", display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.4rem" }}>
                 🎯 Slot & Period Resolution
               </strong>
-              Maps Day Orders (<strong>I</strong> through <strong>V</strong>), Periods (<strong>1</strong> through <strong>8</strong>), lab blocks, and lunch hours directly into the college database.
+                Day orders and periods are normalized only when their cell values are valid. Scanned PDFs or layouts that cannot be read reliably are not imported.
             </div>
           </div>
         )}
@@ -271,7 +270,7 @@ export default function AdminTimetablePdfUpload({ onUploadSuccess }: { onUploadS
             <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
               {file
                 ? `${(file.size / (1024 * 1024)).toFixed(2)} MB • Ready for automated extraction`
-                : "Vel Tech Multi Tech Individual Time Table PDF format"}
+                : "Text-readable timetable PDF with a row-oriented table"}
             </p>
           </div>
         </div>
@@ -469,7 +468,7 @@ export default function AdminTimetablePdfUpload({ onUploadSuccess }: { onUploadS
                         <div>
                           <strong>{f.name}</strong>
                           <div style={{ color: "var(--text-muted)", fontSize: "0.7rem" }}>
-                            {f.vmsNo ? `MTS: ${f.vmsNo} • ` : ""}{f.designation}
+                        {f.vmsNo ? `MTS: ${f.vmsNo} • ` : ""}{f.designation || "No designation in PDF"}
                           </div>
                         </div>
                         <span style={{ padding: "0.2rem 0.5rem", borderRadius: "4px", backgroundColor: "rgba(56, 189, 248, 0.15)", color: "var(--sky-blue)", fontWeight: "700", fontSize: "0.75rem" }}>
@@ -504,13 +503,17 @@ export default function AdminTimetablePdfUpload({ onUploadSuccess }: { onUploadS
                     <tbody>
                       {uploadResult.sampleSlots.map((s, idx) => (
                         <tr key={idx} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                          <td style={{ padding: "0.45rem 0.6rem", fontWeight: "700", color: "#a855f7" }}>{s.classId}</td>
-                          <td style={{ padding: "0.45rem 0.6rem", fontWeight: "700" }}>Day {s.dayOrder}</td>
-                          <td style={{ padding: "0.45rem 0.6rem" }}>P{s.period}</td>
-                          <td style={{ padding: "0.45rem 0.6rem", color: "var(--text-muted)" }}>{s.timeRange}</td>
-                          <td style={{ padding: "0.45rem 0.6rem", fontWeight: "600", color: "var(--sky-blue)" }}>{s.subjectName} ({s.subjectCode})</td>
-                          <td style={{ padding: "0.45rem 0.6rem" }}>{s.facultyName}</td>
-                          <td style={{ padding: "0.45rem 0.6rem" }}>{s.roomNo}</td>
+                          <td style={{ padding: "0.45rem 0.6rem", fontWeight: "700", color: "#a855f7" }}>{s.classId || "—"}</td>
+                          <td style={{ padding: "0.45rem 0.6rem", fontWeight: "700" }}>{s.dayOrder ? `Day ${s.dayOrder}` : "—"}</td>
+                          <td style={{ padding: "0.45rem 0.6rem" }}>{s.period ? `P${s.period}` : "—"}</td>
+                          <td style={{ padding: "0.45rem 0.6rem", color: "var(--text-muted)" }}>{s.timeRange || "—"}</td>
+                          <td style={{ padding: "0.45rem 0.6rem", fontWeight: "600", color: "var(--sky-blue)" }}>
+                            {s.subjectName || s.subjectCode
+                              ? `${s.subjectName || ""}${s.subjectName && s.subjectCode ? ` (${s.subjectCode})` : s.subjectCode ? ` (${s.subjectCode})` : ""}`
+                              : "—"}
+                          </td>
+                          <td style={{ padding: "0.45rem 0.6rem" }}>{s.facultyName || "—"}</td>
+                          <td style={{ padding: "0.45rem 0.6rem" }}>{s.roomNo || "—"}</td>
                         </tr>
                       ))}
                     </tbody>

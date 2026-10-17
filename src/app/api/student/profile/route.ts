@@ -30,11 +30,12 @@ export async function GET(request: Request) {
           role: um.usermode.toUpperCase(),
           status: user?.status || "ACTIVE",
           studentProfile: {
-             department: "CSE",
-             semester: 5,
-             section: "A",
-             batch: "2023-2027",
-             rollNumber: um.vmno
+             department: user?.studentProfile?.department ?? null,
+             semester: user?.studentProfile?.semester ?? null,
+             year: user?.studentProfile?.year ?? null,
+             section: user?.studentProfile?.section ?? null,
+             batch: user?.studentProfile?.batch ?? null,
+             rollNumber: user?.studentProfile?.rollNumber ?? null
           }
         } as any;
       }
@@ -44,28 +45,19 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: "Profile not found." }, { status: 404 });
     }
 
-    // Determine year
-    const sem = user.studentProfile.semester || 1;
-    let year = "1st Year";
-    if (sem === 3 || sem === 4) year = "2nd Year";
-    if (sem === 5 || sem === 6) year = "3rd Year";
-    if (sem === 7 || sem === 8) year = "4th Year";
-
     return NextResponse.json({
       success: true,
       data: {
         name: user.name,
         email: user.email,
-        vmNo: user.vmNo || user.studentProfile.rollNumber,
+        vmNo: user.vmNo || "",
         status: user.status,
         profile: {
-          department: user.studentProfile.department.startsWith("B.E") || user.studentProfile.department.startsWith("B.Tech") 
-                      ? user.studentProfile.department 
-                      : "B.E " + user.studentProfile.department,
-          semester: user.studentProfile.semester,
-          section: "A", // Default for now until schema update
-          batch: user.studentProfile.batch || "2023-2027",
-          year: year
+          department: user.studentProfile.department || "",
+          semester: user.studentProfile.semester ?? "",
+          section: user.studentProfile.section || "",
+          batch: user.studentProfile.batch || "",
+          year: user.studentProfile.year || ""
         }
       }
     });

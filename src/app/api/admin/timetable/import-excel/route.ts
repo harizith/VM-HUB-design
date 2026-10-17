@@ -1,134 +1,128 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireAdmin } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
-const DEFAULT_TIMINGS: Record<number, string> = {
-  1: "08:05 - 08:55",
-  2: "08:55 - 09:45",
-  3: "10:00 - 10:50",
-  4: "10:50 - 11:40",
-  5: "12:20 - 01:05",
-  6: "01:05 - 01:50",
-  7: "02:00 - 02:45",
-  8: "02:45 - 03:30",
-};
-
-function normalizeDayOrder(val: any): string {
-  if (!val) return "I";
-  const s = String(val).trim().toUpperCase();
-  if (s === "1" || s === "I" || s.endsWith(" 1") || s.endsWith(" I")) return "I";
-  if (s === "2" || s === "II" || s.endsWith(" 2") || s.endsWith(" II")) return "II";
-  if (s === "3" || s === "III" || s.endsWith(" 3") || s.endsWith(" III")) return "III";
-  if (s === "4" || s === "IV" || s.endsWith(" 4") || s.endsWith(" IV")) return "IV";
-  if (s === "5" || s === "V" || s.endsWith(" 5") || s.endsWith(" V")) return "V";
-  return ["I", "II", "III", "IV", "V"].includes(s) ? s : "I";
+function normalizeDayOrder(value: unknown): string | null {
+  const text = String(value ?? "").trim().toUpperCase().replace(/^DAY\s+/, "");
+  if (!text) return null;
+  const roman: Record<string, string> = { "1": "I", "2": "II", "3": "III", "4": "IV", "5": "V" };
+  const normalized = roman[text] || text;
+  return ["I", "II", "III", "IV", "V"].includes(normalized) ? normalized : null;
 }
 
-function normalizePeriod(val: any): number {
-  if (typeof val === "number" && val >= 1 && val <= 8) return val;
-  const str = String(val || "").replace(/\D/g, "");
-  const num = parseInt(str, 10);
-  if (!isNaN(num) && num >= 1 && num <= 8) return num;
-  return 1;
+function normalizePeriod(value: unknown): number | null {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+  const match = text.match(/\d+/);
+  if (!match) return null;
+  const period = Number.parseInt(match[0], 10);
+  return period >= 1 && period <= 8 ? period : null;
+}
+
+function cell(row: Record<string, unknown>, ...names: string[]) {
+  const aliases = new Set(names.map((name) => name.toLowerCase().replace(/[^a-z0-9]/g, "")));
+  const key = Object.keys(row).find((name) => aliases.has(name.toLowerCase().replace(/[^a-z0-9]/g, "")));
+  return key === undefined ? "" : String(row[key] ?? "").trim();
+}
+
+function optionalText(value: string) {
+  return value || null;
 }
 
 export async function POST(req: Request) {
-  try {
-    const body = await req.json();
-    const { entries, mode } = body;
+  const authorization = await requireAdmin();
+  if (!authorization.ok) {
+    return NextResponse.json({ success: false, error: authorization.error }, { status: authorization.status });
+  }
 
-    if (!entries || !Array.isArray(entries) || entries.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "No timetable entries provided" },
-        { status: 400 }
-      );
+  try {
+    const { entries, mode } = await req.json();
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return NextResponse.json({ success: false, error: "No timetable entries provided" }, { status: 400 });
     }
 
     const validEntries: any[] = [];
-    const errors: string[] = [];
+    const warnings: string[] = [];
 
-    entries.forEach((row: any, idx: number) => {
-      const rowNum = idx + 2; // Accounting for 1-based index and header
-      const classId = (row.classId || row.class_id || row.class || row["Class ID"] || row["Class"] || "").toString().trim();
-      const rawDayOrder = row.dayOrder || row.day_order || row.day || row["Day Order"] || row["Day"] || "";
-      const rawPeriod = row.period || row["Period"] || row.slot || row["Slot"] || 1;
-      const subjectCode = (row.subjectCode || row.subject_code || row.code || row["Subject Code"] || row["SubjectCode"] || "").toString().trim();
-      const subjectName = (row.subjectName || row.subject_name || row.subject || row["Subject Name"] || row["Subject"] || "").toString().trim();
-      const facultyName = (row.facultyName || row.faculty_name || row.faculty || row["Faculty Name"] || row["Faculty"] || "").toString().trim();
-      const roomNo = (row.roomNo || row.room_no || row.room || row["Room No"] || row["Room"] || "").toString().trim() || "LH-101";
-      const vmsNo = (row.vmsNo || row.vms_no || row.vmNo || row.vmno || row["VMS No"] || row["VM No"] || "").toString().trim() || null;
-      const category = (row.category || row.slotCategory || row.subjectCategory || row["Category"] || row["Subject Category"] || "").toString().trim().toLowerCase() || null;
-      const rawTimeRange = (row.timeRange || row.time_range || row.time || row["Time Range"] || row["Time"] || "").toString().trim();
+    entries.forEach((raw: Record<string, unknown>, index: number) => {
+      const rowNum = index + 2;
+      const classId = cell(raw, "classId", "class_id", "class", "Class ID");
+      const rawDayOrder = cell(raw, "dayOrder", "day_order", "day", "Day Order");
+      const rawPeriod = cell(raw, "period", "slot", "Period");
+      const subjectCode = cell(raw, "subjectCode", "subject_code", "code", "Subject Code");
+      const subjectName = cell(raw, "subjectName", "subject_name", "subject", "Subject Name");
+      const facultyName = cell(raw, "facultyName", "faculty_name", "faculty", "teacher", "Faculty Name");
+      const roomNo = cell(raw, "roomNo", "room_no", "room", "Room No");
+      const vmsNo = cell(raw, "vmsNo", "vms_no", "vmNo", "vmno", "VMS No", "VM No");
+      const rawTimeRange = cell(raw, "timeRange", "time_range", "time", "Time Range");
+      const category = cell(raw, "category", "slotCategory", "subjectCategory", "Subject Category");
 
-      if (!classId) {
-        errors.push(`Row ${rowNum}: Missing Class ID`);
-        return;
-      }
-      if (!subjectName && !subjectCode) {
-        errors.push(`Row ${rowNum}: Missing Subject Name or Code`);
+      const hasValue = [classId, rawDayOrder, rawPeriod, subjectCode, subjectName, facultyName, roomNo, vmsNo, rawTimeRange, category]
+        .some((value) => value !== "");
+      if (!hasValue) {
+        warnings.push(`Row ${rowNum}: ignored because it contains no timetable data`);
         return;
       }
 
       const dayOrder = normalizeDayOrder(rawDayOrder);
+      if (rawDayOrder && !dayOrder) warnings.push(`Row ${rowNum}: unrecognized day order stored as entered`);
       const period = normalizePeriod(rawPeriod);
-      const timeRange = rawTimeRange || DEFAULT_TIMINGS[period] || `Period ${period}`;
+      if (rawPeriod && period === null) warnings.push(`Row ${rowNum}: invalid period kept unset`);
 
       validEntries.push({
-        classId,
-        dayOrder,
+        classId: optionalText(classId),
+        dayOrder: dayOrder || optionalText(rawDayOrder),
         period,
-        timeRange,
-        subjectCode: subjectCode || "SUB",
-        subjectName: subjectName || subjectCode,
-        facultyName: facultyName || "Staff",
-        roomNo,
-        vmsNo: vmsNo || null,
-        category: category || null,
+        timeRange: optionalText(rawTimeRange),
+        subjectCode: optionalText(subjectCode),
+        subjectName: optionalText(subjectName),
+        facultyName: optionalText(facultyName),
+        roomNo: optionalText(roomNo),
+        vmsNo: optionalText(vmsNo),
+        category: optionalText(category.toLowerCase()),
       });
     });
 
     if (validEntries.length === 0) {
       return NextResponse.json(
-        { success: false, error: "No valid rows found in uploaded file", details: errors },
+        { success: false, error: "The file has no non-empty timetable rows", warnings },
         { status: 400 }
       );
     }
 
-    // If mode === "replace", delete entries matching the classes present in this upload
     if (mode === "replace") {
-      const distinctClasses = Array.from(new Set(validEntries.map((e) => e.classId)));
-      await prisma.timetableEntry.deleteMany({
-        where: {
-          classId: { in: distinctClasses },
-        },
-      });
+      const classIds = [...new Set(validEntries.map((entry) => entry.classId).filter(Boolean))];
+      const facultyNames = [...new Set(validEntries.map((entry) => entry.facultyName).filter(Boolean))];
+      const vmsNumbers = [...new Set(validEntries.map((entry) => entry.vmsNo).filter(Boolean))];
+      const targets: any[] = [];
+      if (classIds.length) targets.push({ classId: { in: classIds } });
+      if (facultyNames.length) targets.push({ facultyName: { in: facultyNames } });
+      if (vmsNumbers.length) targets.push({ vmsNo: { in: vmsNumbers } });
+      if (targets.length) await prisma.timetableEntry.deleteMany({ where: { OR: targets } });
     }
 
-    // Insert all entries
-    const result = await prisma.timetableEntry.createMany({
-      data: validEntries,
-    });
+    const result = await prisma.timetableEntry.createMany({ data: validEntries });
 
-    // Create Audit Log
     try {
       await prisma.auditLog.create({
         data: {
           action: "EXCEL_TIMETABLE_IMPORT",
-          details: `Imported ${result.count} timetable entries via Excel. Classes: ${Array.from(new Set(validEntries.map((e) => e.classId))).join(", ")}`,
-          performedBy: "Admin",
+          details: `Imported ${result.count} timetable rows via Excel.`,
+          performedBy: authorization.email,
         },
       });
-    } catch (auditErr) {
-      console.warn("Audit log creation skipped:", auditErr);
+    } catch (error) {
+      console.warn("Audit log creation skipped:", error);
     }
 
     return NextResponse.json({
       success: true,
       count: result.count,
       totalProcessed: entries.length,
-      warningCount: errors.length,
-      warnings: errors.slice(0, 5),
+      warningCount: warnings.length,
+      warnings: warnings.slice(0, 10),
     });
   } catch (error: any) {
     console.error("Timetable Excel Import Error:", error);

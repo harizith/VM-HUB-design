@@ -9,7 +9,7 @@ async function main() {
   const classMap: Record<string, { uniquePeriods: Set<string>; entries: any[] }> = {};
 
   for (const e of entries) {
-    const key = e.classId;
+    const key = e.classId || 'UNASSIGNED';
     if (!classMap[key]) {
       classMap[key] = { uniquePeriods: new Set(), entries: [] };
     }

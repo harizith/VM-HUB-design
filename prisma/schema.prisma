@@ -43,31 +43,36 @@ model UserMode {
 model StudentProfile {
   userEmail   String     @id
   user        User       @relation(fields: [userEmail], references: [email], onDelete: Cascade)
-  rollNumber  String     @unique
-  department  String
-  dept        Department @relation(fields: [department], references: [code], onDelete: Cascade)
-  semester    Int        @default(1)
-  batch       String     @default("2023-2027")
-  year        String     @default("I")
-  section     String     @default("A")
+  rollNumber  String?    @unique
+  department  String?
+  dept        Department? @relation(fields: [department], references: [code], onDelete: SetNull)
+  semester    Int?
+  batch       String?
+  year        String?
+  section     String?
   createdAt   DateTime   @default(now())
 }
 
 model FacultyProfile {
   vmNo        String     @id
   user        User       @relation(fields: [vmNo], references: [vmNo], onDelete: Cascade)
-  department  String
-  dept        Department @relation(fields: [department], references: [code], onDelete: Cascade)
-  designation String     @default("Assistant Professor")
+  department  String?
+  dept        Department? @relation(fields: [department], references: [code], onDelete: SetNull)
+  designation String?
+  subject1    String?
+  subject2    String?
+  lab1        String?
+  additional1 String?
+  additional2 String?
   createdAt   DateTime   @default(now())
 }
 
 model HodProfile {
   vmNo        String     @id
   user        User       @relation(fields: [vmNo], references: [vmNo], onDelete: Cascade)
-  department  String
-  dept        Department @relation(fields: [department], references: [code], onDelete: Cascade)
-  designation String     @default("Head of Department")
+  department  String?
+  dept        Department? @relation(fields: [department], references: [code], onDelete: SetNull)
+  designation String?
   createdAt   DateTime   @default(now())
 }
 
@@ -131,14 +136,14 @@ model AuditLog {
 
 model TimetableEntry {
   id          String   @id @default(uuid())
-  classId     String   // e.g., "IICSEA"
-  dayOrder    String   // e.g., "I", "II", "III", "IV", "V"
-  period      Int      // 1 to 8
-  timeRange   String
-  subjectCode String
-  subjectName String
-  facultyName String
-  roomNo      String
+  classId     String?  // e.g., "IICSEA"
+  dayOrder    String?  // e.g., "I", "II", "III", "IV", "V"
+  period      Int?     // 1 to 8
+  timeRange   String?
+  subjectCode String?
+  subjectName String?
+  facultyName String?
+  roomNo      String?
   vmsNo       String?
   category    String?  // sub1, sub2, sub3, lab1, lab2, pe, oe, additional1, additional2
   createdAt   DateTime @default(now())

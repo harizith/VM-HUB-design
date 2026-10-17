@@ -24,55 +24,33 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: "No student profile found." }, { status: 404 });
     }
 
-    const semester = user.studentProfile.semester || 3; 
-    let yearStr = user.studentProfile.year || "I";
-    let section = user.studentProfile.section || "A";
-    let rawDept = user.studentProfile.department || "CSE";
-    let department = rawDept;
-
-    const secMatch = rawDept.match(/\(Sec\s+([A-Z])\)/i);
-    if (secMatch) {
-      if (!user.studentProfile.section) {
-        section = secMatch[1].toUpperCase();
-      }
-      department = rawDept.replace(/\s*\(Sec\s+[A-Z]\)\s*/i, "").trim();
-    }
+    const yearStr = user.studentProfile.year?.trim() || "";
+    const section = user.studentProfile.section?.trim() || "";
+    const department = user.studentProfile.department?.trim() || "";
     const normalizedDept = department.replace(/^(B\.E\s+|B\.Tech\s+)/i, "").trim();
-    const classId = `${yearStr}-${normalizedDept}-${section}`;
-    const possibleClasses = new Set<string>([classId]);
-    if (yearStr === "II" || semester === 3 || semester === 4) {
-      possibleClasses.add(`III-${normalizedDept}-${section}`);
-      possibleClasses.add(`II-${normalizedDept}-${section}`);
-    } else if (yearStr === "III" || semester === 5 || semester === 6) {
-      possibleClasses.add(`V-${normalizedDept}-${section}`);
-      possibleClasses.add(`III-${normalizedDept}-${section}`);
-    } else if (yearStr === "IV" || semester === 7 || semester === 8) {
-      possibleClasses.add(`VII-${normalizedDept}-${section}`);
-      possibleClasses.add(`IV-${normalizedDept}-${section}`);
-    }
+    const classId = yearStr && normalizedDept && section ? `${yearStr}-${normalizedDept}-${section}` : "";
+    const possibleClasses = classId ? [classId] : [];
 
     let fullTimetable: any[] = [];
     try {
-      fullTimetable = await prisma.timetableEntry.findMany({
-        where: { classId: { in: Array.from(possibleClasses) } },
-        orderBy: [
-          { dayOrder: 'asc' },
-          { period: 'asc' }
-        ]
-      });
+      if (possibleClasses.length) {
+        fullTimetable = await prisma.timetableEntry.findMany({
+          where: { classId: { in: possibleClasses } },
+          orderBy: [{ dayOrder: "asc" }, { period: "asc" }],
+        });
+      }
     } catch (e) {
       console.error("Could not fetch timetable entries via prisma client", e);
     }
 
     // Group by Day Order
     const grouped: Record<string, any[]> = {
-      "I": [], "II": [], "III": [], "IV": [], "V": []
+      "I": [], "II": [], "III": [], "IV": [], "V": [], UNASSIGNED: []
     };
 
     fullTimetable.forEach(entry => {
-      if (grouped[entry.dayOrder]) {
-        grouped[entry.dayOrder].push(entry);
-      }
+      const day = entry.dayOrder;
+      (day && grouped[day] ? grouped[day] : grouped.UNASSIGNED).push(entry);
     });
 
     return NextResponse.json({

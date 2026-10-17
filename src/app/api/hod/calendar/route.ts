@@ -44,11 +44,13 @@ export async function GET() {
       II: [],
       III: [],
       IV: [],
-      V: []
+      V: [],
+      UNASSIGNED: []
     };
 
     for (const entry of entries) {
-      timetable[entry.dayOrder]?.push(entry);
+      const day = entry.dayOrder;
+      (day && timetable[day] ? timetable[day] : timetable.UNASSIGNED).push(entry);
     }
 
     return NextResponse.json({

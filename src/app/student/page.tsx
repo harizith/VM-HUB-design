@@ -68,8 +68,8 @@ export default function DashboardPage() {
           </div>
         </div>
         <div className="student-course-info">
-          <strong>{data?.student?.department || "B.E CSE"}</strong>
-          Semester {data?.student?.semester || 5} - Section {data?.student?.section || "A"}
+          <strong>{data?.student?.department || "Department not set"}</strong>
+          Semester {data?.student?.semester ?? "—"} - Section {data?.student?.section || "—"}
         </div>
       </header>
 

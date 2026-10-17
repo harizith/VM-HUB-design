@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAdmin } from '@/lib/adminAuth';
 
 export async function POST(request: Request) {
+  const authorization = await requireAdmin();
+  if (!authorization.ok) {
+    return NextResponse.json({ success: false, error: authorization.error }, { status: authorization.status });
+  }
+
   try {
     const { conflicts } = await request.json();
     
